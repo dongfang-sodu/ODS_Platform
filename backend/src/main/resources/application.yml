@@ -1,0 +1,68 @@
+spring:
+  application:
+    name: ods-platform-api
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/ods;MODE=PostgreSQL;AUTO_SERVER=TRUE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+ods:
+  seed:
+    enabled: ${ODS_SEED_ENABLED:true}
+    password: ${ODS_SEED_PASSWORD:ChangeMe123!}
+  security:
+    jwt-secret: ${JWT_SECRET:change-this-development-secret-to-at-least-32-characters}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ods}
+    username: ${DB_USERNAME:ods}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+ods:
+  seed:
+    enabled: ${ODS_SEED_ENABLED:false}
+  security:
+    jwt-secret: ${JWT_SECRET}

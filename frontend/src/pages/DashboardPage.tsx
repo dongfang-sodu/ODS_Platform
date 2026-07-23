@@ -1,0 +1,17 @@
+import { Link } from 'react-router-dom'
+import { PageHeader } from '../components/PageHeader'
+import { StatCard } from '../components/StatCard'
+import { demoProjects, demoTickets } from '../data/demo'
+
+export function DashboardPage() {
+  const active = demoProjects.filter((project) => project.status === 'Active').length
+  return <>
+    <PageHeader eyebrow="Good morning, You" title="Your workspace" description="A clear view of projects, tasks and insights across One Driving System." actions={<Link className="button primary" to="/projects/new">＋ New project</Link>} />
+    <section className="stat-grid"><StatCard label="Active projects" value={active} detail="2 updated this week" tone="blue" /><StatCard label="Open tickets" value={demoTickets.length} detail="1 high priority" tone="amber" /><StatCard label="Market sales" value="284.6K" detail="+12.8% year over year" tone="green" /><StatCard label="Academy courses" value="12" detail="3 awaiting publication" tone="purple" /></section>
+    <section className="dashboard-grid">
+      <article className="card chart-card"><div className="card-heading"><div><span className="eyebrow">Delivery pulse</span><h2>Project health</h2></div><Link to="/projects" className="text-link">View all →</Link></div><div className="health-chart"><div className="chart-y"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="bars">{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => <div className="bar-group" key={month}><div className="bar-track"><i className="bar-active" style={{ height: `${45 + index * 7}%` }} /><i className="bar-risk" style={{ height: `${20 + (index % 3) * 9}%` }} /></div><small>{month}</small></div>)}</div></div><div className="legend"><span><i className="dot blue" />On track</span><span><i className="dot amber" />At risk</span></div></article>
+      <article className="card activity-card"><div className="card-heading"><div><span className="eyebrow">Latest updates</span><h2>Activity</h2></div><button className="icon-button" aria-label="Activity options">•••</button></div><div className="activity-list">{['PMO risk status updated for Highway Pilot', 'Course invitation sent to 16 trainees', 'Vehicle Market data refreshed'].map((text, index) => <div className="activity-item" key={text}><span className={`activity-dot dot-${index}`} /><div><p>{text}</p><small>{index + 1} hour{index ? 's' : ''} ago · {['Alice Wang', 'EDS Academy', 'System'][index]}</small></div></div>)}</div><Link className="button ghost full-width" to="/guidelines">View activity log</Link></article>
+    </section>
+    <section className="card table-card"><div className="card-heading"><div><span className="eyebrow">Keep moving</span><h2>My priority tickets</h2></div><Link to="/tickets" className="text-link">Open My Ticket →</Link></div><div className="table-wrap"><table><thead><tr><th>Ticket</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead><tbody>{demoTickets.map((ticket) => <tr key={ticket.id}><td><Link className="table-link" to="/tickets">{ticket.key}</Link><span className="cell-title">{ticket.title}</span></td><td>{ticket.project}</td><td><span className={`status status-${ticket.status.toLowerCase().replace(' ', '-')}`}>{ticket.status}</span></td><td><span className={`priority priority-${ticket.priority.toLowerCase()}`}><i />{ticket.priority}</span></td><td>{ticket.dueDate}</td></tr>)}</tbody></table></div></section>
+  </>
+}
