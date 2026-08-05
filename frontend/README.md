@@ -12,21 +12,21 @@ React + TypeScript + Vite frontend for One Driving System. The baseline covers t
 
 ## Requirements
 
-- Node.js 20 LTS or newer
-- npm 10 or newer
-- Spring Boot API on `http://localhost:8080` for live data (optional during UI development)
+- Node.js 22.23.1 (the Docker build uses the same version)
+- npm 10.9.8 or another npm 10 release
+- Spring Boot API on `http://localhost:8080` for live data
 
 ## Run locally
 
 ```powershell
 cd C:\Users\admin\ODS\frontend
-npm install
+npm ci
 npm run dev
 ```
 
 Open `http://localhost:5173`. The app starts at `/login` and sends credentials to `/api/v1/auth/login`. A successful response stores the JWT in local storage and all protected requests include it as a Bearer token. Vite proxies `/api` to `http://localhost:8080`, so no additional CORS setup is needed for local development.
 
-The pages deliberately fall back to clearly labelled demo data when the API is not available. Forms still validate locally and show a retry message instead of silently pretending that a server write succeeded.
+The default is production-style behavior: failed API requests show an error or empty state and never substitute sample records. For UI previews, set `VITE_ENABLE_DEMO_DATA=true`; fallback records are then clearly labelled and read-only, while real API responses still take precedence.
 
 ## Configuration
 
@@ -34,7 +34,11 @@ Copy `.env.example` to `.env.local` if the API uses another base URL:
 
 ```text
 VITE_API_BASE_URL=http://localhost:8080/api/v1
+VITE_ENABLE_DEMO_DATA=false
 ```
+
+Set `VITE_ENABLE_DEMO_DATA=true` only for an explicit read-only preview when the API is unavailable.
+The Docker build accepts both values as build arguments; they are compiled into the static bundle and must not contain secrets.
 
 ## API contract used by the frontend
 
@@ -59,6 +63,7 @@ VITE_API_BASE_URL=http://localhost:8080/api/v1
 ## Verification
 
 ```powershell
+npm ci
 npm run typecheck
 npm run build
 ```

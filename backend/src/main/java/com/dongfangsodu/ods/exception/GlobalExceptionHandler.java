@@ -15,7 +15,9 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -71,6 +73,18 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> dataConflict(DataIntegrityViolationException exception,
                                                 HttpServletRequest request) {
         return response(HttpStatus.CONFLICT, "DATA_CONFLICT", "数据与现有记录冲突", request, null);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ErrorResponse> routeNotFound(NoResourceFoundException exception,
+                                                HttpServletRequest request) {
+        return response(HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "请求的接口不存在", request, null);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ErrorResponse> methodNotAllowed(HttpRequestMethodNotSupportedException exception,
+                                                   HttpServletRequest request) {
+        return response(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", "请求方法不支持", request, null);
     }
 
     @ExceptionHandler(Exception.class)

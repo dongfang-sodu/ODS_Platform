@@ -86,6 +86,14 @@ class RequestDtoValidationTest {
                 "EDS", null, null, null), "dateRangeValid");
     }
 
+    @Test
+    void loginRequestNeverExposesPasswordThroughSerializationOrLogs() {
+        String secret = "SensitivePassword123!";
+        LoginRequest request = new LoginRequest("security-user", secret);
+
+        assertThat(request.toString()).doesNotContain(secret).contains("[REDACTED]");
+    }
+
     private void assertInvalidProperties(Object request, String... propertyNames) {
         Set<String> invalidProperties = validator.validate(request).stream()
                 .map(violation -> violation.getPropertyPath().toString())

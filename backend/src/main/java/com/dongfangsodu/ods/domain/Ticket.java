@@ -45,6 +45,13 @@ public class Ticket extends BaseEntity {
         this.dueDate = dueDate;
     }
 
+    public Ticket(String externalKey, String summary, String description, String assignee,
+                  String projectKey, TicketPriority priority, LocalDate dueDate, String source) {
+        this(externalKey, summary, assignee, projectKey, priority, dueDate);
+        this.description = description;
+        this.source = source;
+    }
+
     public void changePriority(TicketPriority priority) { this.priority = priority; }
     public void changeStatus(TicketStatus status) { this.status = status; }
     public String getExternalKey() { return externalKey; }

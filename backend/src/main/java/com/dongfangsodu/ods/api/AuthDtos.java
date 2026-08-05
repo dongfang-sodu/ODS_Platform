@@ -1,5 +1,6 @@
 package com.dongfangsodu.ods.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.dongfangsodu.ods.domain.Role;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,7 +11,12 @@ public final class AuthDtos {
     }
 
     public record LoginRequest(@NotBlank @Size(max = 100) String username,
+                               @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
                                @NotBlank @Size(max = 255) String password) {
+        @Override
+        public String toString() {
+            return "LoginRequest[username=" + username + ", password=[REDACTED]]";
+        }
     }
 
     public record LoginResponse(String token, String tokenType, UserResponse user) {

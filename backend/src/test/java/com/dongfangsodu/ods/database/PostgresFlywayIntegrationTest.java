@@ -35,16 +35,19 @@ class PostgresFlywayIntegrationTest {
     private JdbcTemplate jdbc;
 
     @Test
-    void flywayCreatesCoreSchemaOnPostgres() {
+    void flywayCreatesCoreAndTraceabilitySchemaOnPostgres() {
         Integer applied = jdbc.queryForObject(
                 "select count(*) from flyway_schema_history where success", Integer.class);
         Integer tables = jdbc.queryForObject("""
                 select count(*) from information_schema.tables
                 where table_schema = 'public'
-                  and table_name in ('users', 'projects', 'pmo_projects', 'training_courses')
+                  and table_name in (
+                    'users', 'projects', 'pmo_projects', 'training_courses',
+                    'trace_artifacts', 'trace_relations', 'trace_impact_reports', 'trace_operation_logs'
+                  )
                 """, Integer.class);
 
-        assertThat(applied).isPositive();
-        assertThat(tables).isEqualTo(4);
+        assertThat(applied).isGreaterThanOrEqualTo(3);
+        assertThat(tables).isEqualTo(8);
     }
 }

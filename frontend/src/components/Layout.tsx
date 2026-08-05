@@ -8,6 +8,7 @@ const navGroups = [
   { label: 'Overview', links: [{ to: '/', label: 'Dashboard', icon: '⌂' }] },
   { label: 'Digital Project Management', links: [{ to: '/projects', label: 'Project List', icon: '▤' }, { to: '/pmo', label: 'PMO L0 / L1', icon: '◈' }] },
   { label: 'Digital Operation', links: [{ to: '/market', label: 'Vehicle Market', icon: '◒' }] },
+  { label: 'Engineering Traceability', links: [{ to: '/traceability', label: 'Trace & Impact', icon: '⌘' }] },
   { label: 'Digital Knowledge', links: [{ to: '/academy', label: 'Academy Library', icon: '▦' }] },
   { label: 'Digital Workspace', links: [{ to: '/tickets', label: 'My Ticket', icon: '✓' }, { to: '/guidelines', label: 'Video Guideline', icon: '▶' }] },
 ]

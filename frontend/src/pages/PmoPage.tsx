@@ -2,27 +2,57 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, authSession } from '../api/client'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
+import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import { demoPmoProjects } from '../data/demo'
 import type { PmoLevel, PmoProject, PmoRisk } from '../types'
 
 export function PmoPage() {
-  const [items, setItems] = useState<PmoProject[]>(demoPmoProjects)
+  const [items, setItems] = useState<PmoProject[]>(demoDataEnabled ? demoPmoProjects : [])
   const [level, setLevel] = useState<'All' | PmoLevel>('All')
   const [risk, setRisk] = useState<'All' | PmoRisk>('All')
   const [showForm, setShowForm] = useState(false)
   const [parentId, setParentId] = useState<string>()
   const [editingProject, setEditingProject] = useState<PmoProject | null>(null)
-  const [notice, setNotice] = useState('Loading PMO projects...')
+  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading live PMO projects` : 'Loading PMO projects...')
+  const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
   const user = authSession.user()
   const canManage = Boolean(user?.roles.some((role) => ['PJM', 'EBE', 'EPO', 'LPM', 'ADMIN'].includes(role)))
   const canDelete = Boolean(user?.roles.some((role) => role === 'LPM' || role === 'ADMIN'))
   const roleLabel = user?.roles.join(', ') || 'USER'
+  const writeEnabled = canManage && !loading && !loadFailed && !showingDemo
+  const deleteEnabled = canDelete && !loading && !loadFailed && !showingDemo
 
   useEffect(() => {
     let alive = true
+    setLoading(true)
+    setLoadFailed(false)
     api.pmo.list()
-      .then((data) => { if (alive) { setItems(data); setNotice('Live data') } })
-      .catch((error) => { if (alive) setNotice(error instanceof Error ? error.message : 'PMO projects could not be loaded') })
+      .then((data) => {
+        if (!alive) return
+        setItems(data)
+        setShowingDemo(false)
+        setNotice('Live data')
+      })
+      .catch((error) => {
+        if (!alive) return
+        const message = error instanceof Error ? error.message : 'PMO projects could not be loaded'
+        setLoadFailed(true)
+        setShowForm(false)
+        setEditingProject(null)
+        setParentId(undefined)
+        if (demoDataEnabled) {
+          setItems(demoPmoProjects)
+          setShowingDemo(true)
+          setNotice(`${demoReadOnlyNotice} · ${message}`)
+        } else {
+          setItems([])
+          setShowingDemo(false)
+          setNotice(message)
+        }
+      })
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [])
 
@@ -32,6 +62,10 @@ export function PmoPage() {
   )
 
   const addProject = async (code: string, name: string, capacity: number, selectedParent?: string) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · connect the API to add projects` : 'PMO data must load successfully before changes can be made')
+      return false
+    }
     try {
       const input = { code, name, capacity }
       const created = selectedParent
@@ -49,7 +83,11 @@ export function PmoPage() {
   }
 
   const remove = async (item: PmoProject) => {
-    if (!canDelete || !window.confirm(`Delete ${item.name} from PMO?`)) return
+    if (!deleteEnabled) {
+      if (showingDemo) setNotice(`${demoReadOnlyNotice} · demo projects cannot be deleted`)
+      return
+    }
+    if (!window.confirm(`Delete ${item.name} from PMO?`)) return
     try {
       await api.pmo.remove(item.id)
       setItems((current) => current.filter((row) => row.id !== item.id && row.parentId !== item.id))
@@ -60,6 +98,10 @@ export function PmoPage() {
   }
 
   const updateProject = async (project: PmoProject) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo projects cannot be edited` : 'PMO data must load successfully before changes can be made')
+      return false
+    }
     try {
       const updated = await api.pmo.update(project.id, project)
       setItems((current) => current.map((item) => item.id === updated.id ? updated : item))
@@ -73,13 +115,14 @@ export function PmoPage() {
   }
 
   const exportCsv = () => {
+    if (loading) return
     const headers = ['Level', 'Code', 'Name', 'Source', 'Capacity (FTE)', 'Risk', 'MPR escalation', 'Key project', 'Highlight', 'Parent ID']
     const rows = filtered.map((item) => [item.level, item.code, item.name, item.source ?? 'Manual', item.capacity, item.risk, item.mprEscalation ?? '', item.keyProject, item.highlight, item.parentId ?? ''].map(csvCell).join(','))
     const csv = `\uFEFF${headers.map(csvCell).join(',')}\n${rows.join('\n')}`
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url
-    link.download = 'ods-pmo-projects.csv'
+    link.download = showingDemo ? 'ods-pmo-demo-preview.csv' : 'ods-pmo-projects.csv'
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -89,7 +132,7 @@ export function PmoPage() {
       eyebrow="Digital Project Management"
       title="PMO project list"
       description="Maintain L0/L1 projects, capacity and risk signals from the PMO perspective."
-      actions={<><button className="button secondary" onClick={exportCsv}>⇩ Export</button>{canManage && <button className="button primary" onClick={() => { setParentId(undefined); setShowForm(true) }}>＋ Manually add L0</button>}</>}
+      actions={<><button className="button secondary" disabled={loading} onClick={exportCsv}>⇩ Export</button>{writeEnabled && <button className="button primary" onClick={() => { setParentId(undefined); setShowForm(true) }}>＋ Manually add L0</button>}</>}
     />
     <div className="notice-bar"><span className="live-dot" />{notice}<span className="role-pill">Roles: {roleLabel}</span></div>
     <section className="card filter-card">
@@ -100,8 +143,8 @@ export function PmoPage() {
       </div>
     </section>
     <section className="card table-card">
-      <div className="table-toolbar"><div><h2>PMO workspace</h2><p>L1 records inherit context from their parent L0. Only LPM and administrators can delete PMO records.</p></div></div>
-      {filtered.length ? <div className="table-wrap"><table><thead><tr><th>Level / project</th><th>Source</th><th>Capacity</th><th>Risk</th><th>Key / highlight</th><th>Operation</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id}><td><div className={`level-project level-${item.level.toLowerCase()}`}><span>{item.level}</span><div><strong>{item.name}</strong><small>{item.code}{item.parentId && ' · child of L0'}</small></div></div></td><td>{item.source || 'Manual'}</td><td>{item.capacity} FTE</td><td><span className={`risk risk-${item.risk.toLowerCase().replace(' ', '-')}`}>{item.risk}</span></td><td>{item.keyProject && <span className="tag">Key</span>}{item.highlight && <span className="tag purple-tag">Highlight</span>}</td><td>{canManage || canDelete ? <div className="operation-buttons">{canManage && item.level === 'L0' && <button className="small-button" onClick={() => { setParentId(item.id); setShowForm(true) }}>＋ L1</button>}{canManage && <button className="small-button" onClick={() => setEditingProject(item)}>Edit</button>}{canDelete && <button className="small-button danger-button" onClick={() => remove(item)}>Delete</button>}</div> : <span className="cell-muted">View only</span>}</td></tr>)}</tbody></table></div> : <EmptyState title="No PMO projects" description="Adjust your filters or add an L0 project to start the hierarchy." actionLabel={canManage ? 'Add L0' : undefined} onAction={canManage ? () => setShowForm(true) : undefined} />}
+      <div className="table-toolbar"><div><h2>PMO workspace</h2><p>L1 records inherit context from their parent L0. Only LPM and administrators can delete PMO records.</p></div>{loading && <span className="loading-label">Loading…</span>}</div>
+      {filtered.length ? <div className="table-wrap"><table><thead><tr><th>Level / project</th><th>Source</th><th>Capacity</th><th>Risk</th><th>Key / highlight</th><th>Operation</th></tr></thead><tbody>{filtered.map((item) => <tr key={item.id}><td><div className={`level-project level-${item.level.toLowerCase()}`}><span>{item.level}</span><div><strong>{item.name}</strong><small>{item.code}{item.parentId && ' · child of L0'}</small></div></div></td><td>{item.source || 'Manual'}</td><td>{item.capacity} FTE</td><td><span className={`risk risk-${item.risk.toLowerCase().replace(' ', '-')}`}>{item.risk}</span></td><td>{item.keyProject && <span className="tag">Key</span>}{item.highlight && <span className="tag purple-tag">Highlight</span>}</td><td>{writeEnabled || deleteEnabled ? <div className="operation-buttons">{writeEnabled && item.level === 'L0' && <button className="small-button" onClick={() => { setParentId(item.id); setShowForm(true) }}>＋ L1</button>}{writeEnabled && <button className="small-button" onClick={() => setEditingProject(item)}>Edit</button>}{deleteEnabled && <button className="small-button danger-button" onClick={() => remove(item)}>Delete</button>}</div> : <span className="cell-muted">{showingDemo ? 'Preview only' : 'View only'}</span>}</td></tr>)}</tbody></table></div> : !loading && <EmptyState title="No PMO projects" description={loadFailed ? 'PMO data could not be loaded. Check the API connection and try again.' : 'Adjust your filters or add an L0 project to start the hierarchy.'} actionLabel={writeEnabled ? 'Add L0' : undefined} onAction={writeEnabled ? () => setShowForm(true) : undefined} />}
     </section>
     {showForm && <PmoAddDialog defaultParent={parentId} onClose={() => { setShowForm(false); setParentId(undefined) }} onSubmit={addProject} />}
     {editingProject && <PmoEditDialog project={editingProject} onClose={() => setEditingProject(null)} onSubmit={updateProject} />}

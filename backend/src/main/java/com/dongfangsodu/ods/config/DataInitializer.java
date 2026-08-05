@@ -26,8 +26,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.annotation.Order;
 
 @Component
+@Order(10)
 @ConditionalOnProperty(name = "ods.seed.enabled", havingValue = "true")
 public class DataInitializer implements ApplicationRunner {
     private final UserAccountRepository users;
@@ -87,7 +89,7 @@ public class DataInitializer implements ApplicationRunner {
         if (tickets.count() > 0) {
             return;
         }
-        tickets.save(new Ticket("ODS-101", "Complete project milestone review", "demo", "ODS",
+        tickets.save(new Ticket("ODS-101", "Review AEB training and vehicle configuration", "demo", "AEB",
                 TicketPriority.HIGH, LocalDate.now().plusDays(2)));
         tickets.save(new Ticket("ODS-102", "Validate CAAM product mappings", "demo", "MARKET",
                 TicketPriority.MEDIUM, LocalDate.now().plusDays(5)));
@@ -97,7 +99,7 @@ public class DataInitializer implements ApplicationRunner {
         if (courses.count() > 0) {
             return;
         }
-        courses.save(new TrainingCourse("ODS project management onboarding", Instant.now().plus(7, ChronoUnit.DAYS),
+        courses.save(new TrainingCourse("AEB change traceability onboarding", Instant.now().plus(7, ChronoUnit.DAYS),
                 Instant.now().plus(7, ChronoUnit.DAYS).plus(2, ChronoUnit.HOURS), "Academy Trainer",
                 "EDS Academy", "XC-AS team", "EDS", null, "Project workflow and role training", "admin"));
     }
@@ -117,8 +119,8 @@ public class DataInitializer implements ApplicationRunner {
         if (videos.count() > 0) {
             return;
         }
-        videos.save(new VideoGuideline("How to create a project", "Project Management",
-                "Create a QG4 project and understand required fields", "https://example.invalid/videos/create-project",
+        videos.save(new VideoGuideline("How to review AEB configuration changes", "AEB Engineering",
+                "Review affected vehicle configuration and explanation paths", "https://example.invalid/videos/aeb-review",
                 null, 10));
         videos.save(new VideoGuideline("How to filter projects", "Project Management",
                 "Use project filters and keyword search", "https://example.invalid/videos/filter-projects",
@@ -129,7 +131,7 @@ public class DataInitializer implements ApplicationRunner {
         if (knowledge.count() > 0) {
             return;
         }
-        KnowledgeNode root = knowledge.save(new KnowledgeNode("EDS Knowledge Base", NodeType.CATEGORY,
+        KnowledgeNode root = knowledge.save(new KnowledgeNode("AEB Engineering Knowledge", NodeType.CATEGORY,
                 null, null, "Central learning resources", 10));
         knowledge.save(new KnowledgeNode("Project Management Guide", NodeType.LINK, root,
                 "https://example.invalid/knowledge/project-management", "Project management handbook", 10));

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
+import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
+import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import type { VideoGuideline } from '../types'
 
 const fallbackVideos: VideoGuideline[] = [
@@ -18,16 +20,38 @@ const fallbackVideos: VideoGuideline[] = [
 ]
 
 export function VideoGuidelinePage() {
-  const [videos, setVideos] = useState<VideoGuideline[]>(fallbackVideos)
+  const [videos, setVideos] = useState<VideoGuideline[]>(demoDataEnabled ? fallbackVideos : [])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
-  const [notice, setNotice] = useState('Loading published video guidelines...')
+  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading published video guidelines` : 'Loading published video guidelines...')
+  const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
 
   useEffect(() => {
     let alive = true
     api.guidelines.list()
-      .then((data) => { if (alive) { setVideos(data); setNotice('Live data') } })
-      .catch((error) => { if (alive) setNotice(`${error instanceof Error ? error.message : 'Video API unavailable'} · showing the built-in guide catalog`) })
+      .then((data) => {
+        if (!alive) return
+        setVideos(data)
+        setShowingDemo(false)
+        setNotice('Live data')
+      })
+      .catch((error) => {
+        if (!alive) return
+        const message = error instanceof Error ? error.message : 'Video API unavailable'
+        setLoadFailed(true)
+        if (demoDataEnabled) {
+          setVideos(fallbackVideos)
+          setShowingDemo(true)
+          setNotice(`${demoReadOnlyNotice} · ${message}`)
+        } else {
+          setVideos([])
+          setShowingDemo(false)
+          setNotice(message)
+        }
+      })
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [])
 
@@ -37,10 +61,13 @@ export function VideoGuidelinePage() {
     [videos, category, search],
   )
   return <>
-    <PageHeader eyebrow="Digital Workspace" title="Video guideline" description="Short, practical walkthroughs to help you get the most from One Driving System." actions={<button className="button secondary">＋ Suggest a topic</button>} />
+    <PageHeader eyebrow="Digital Workspace" title="Video guideline" description="Short, practical walkthroughs to help you get the most from One Driving System." />
     <div className="notice-bar"><span className="live-dot" />{notice}</div>
     <section className="guideline-hero"><div><span className="eyebrow">Self-service learning</span><h2>Find your next answer in minutes.</h2><p>Browse the topic library or search for a specific ODS workflow. Hosted videos open in a new tab.</p></div><div className="hero-play" aria-hidden="true">▶</div></section>
     <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search video topics" /></label><label className="field"><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((value) => <option key={value}>{value}</option>)}</select></label><span className="result-count">{filtered.length} guides</span></div></section>
-    <section className="video-grid">{filtered.map((video) => <article className="video-card card" key={video.id}><div className={`video-thumb ${video.color ?? 'blue'}`} style={video.thumbnailUrl ? { backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}><span>▶</span><small>{video.duration ?? 'Video'}</small></div><div className="video-copy"><span className="eyebrow">{video.category}</span><h2>{video.title}</h2><p>{video.description}</p>{video.videoUrl ? <a className="text-link" href={video.videoUrl} target="_blank" rel="noreferrer">Watch guide ↗</a> : <span className="text-link muted-link">Video pending</span>}</div></article>)}</section>
+    {filtered.length ? <section className="video-grid">{filtered.map((video) => <article className="video-card card" key={video.id}><div className={`video-thumb ${video.color ?? 'blue'}`} style={video.thumbnailUrl ? { backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}><span>▶</span><small>{video.duration ?? 'Video'}</small></div><div className="video-copy"><span className="eyebrow">{video.category}</span><h2>{video.title}</h2><p>{video.description}</p>{video.videoUrl ? <a className="text-link" href={video.videoUrl} target="_blank" rel="noreferrer">Watch guide ↗</a> : <span className="text-link muted-link">Video pending</span>}</div></article>)}</section> : <section className="card"><EmptyState
+      title={loading ? 'Loading video guidelines' : loadFailed ? 'Video guidelines unavailable' : search || category !== 'All' ? 'No matching guidelines' : 'No published guidelines'}
+      description={loading ? 'Published guides will appear when loading completes.' : loadFailed ? 'The live catalog could not be loaded. Try again after the API is available.' : showingDemo ? demoReadOnlyNotice : 'Published video links will appear here.'}
+    /></section>}
   </>
 }

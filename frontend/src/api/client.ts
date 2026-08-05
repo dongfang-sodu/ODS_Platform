@@ -1,18 +1,31 @@
 import type {
+  AcquisitionStatus,
+  AcquisitionStatusUpdate,
   AuthUser,
   Course,
   CourseInput,
   CourseStatus,
+  ChangeType,
+  CreatedImpactTicket,
+  ImpactReport,
   LoginResult,
   MarketSummary,
   PmoProject,
   PmoRisk,
   Project,
+  ProjectPage,
   ProjectQuery,
   ProjectStatus,
   Ticket,
   TicketPriority,
   TicketStatus,
+  TraceArtifact,
+  TraceArtifactType,
+  TraceDirection,
+  TraceQueryResult,
+  TraceRelation,
+  TraceRelationType,
+  ReviewStatus,
   VideoGuideline,
 } from '../types'
 
@@ -36,6 +49,7 @@ interface WireProject {
   qg4Reference: string
   status: string
   milestoneDate?: string
+  updatedAt?: string
   createdBy?: string
   acquisitionLinked?: boolean
 }
@@ -218,7 +232,7 @@ function mapProject(value: WireProject): Project {
     qg4: value.qg4Reference,
     status: projectFromApi[value.status] ?? 'Draft',
     milestone: value.milestoneDate ?? '',
-    updatedAt: value.milestoneDate ?? 'Not scheduled',
+    updatedAt: value.updatedAt ?? 'Not available',
     acquisitionDepartment: '',
     createdBy: value.createdBy,
     acquisitionLinked: value.acquisitionLinked,
@@ -318,6 +332,23 @@ function courseUpdatePayload(course: CourseInput) {
   }
 }
 
+async function getProjectPage(query: ProjectQuery = {}): Promise<ProjectPage> {
+  const data = await requestData<PageEnvelope<WireProject>>(`/projects${queryString({
+    q: query.keyword,
+    status: query.status && query.status !== 'All' ? projectToApi[query.status] : undefined,
+    owner: query.owner,
+    page: query.page ?? 0,
+    size: query.size ?? 100,
+  })}`)
+  return {
+    items: data.items.map(mapProject),
+    page: data.page,
+    size: data.size,
+    totalElements: data.total,
+    totalPages: data.totalPages,
+  }
+}
+
 export const api = {
   auth: {
     async login(username: string, password: string) {
@@ -335,15 +366,9 @@ export const api = {
     logout: () => authSession.clear(),
   },
   projects: {
+    getProjectPage,
     async list(query: ProjectQuery = {}) {
-      const data = await requestData<PageEnvelope<WireProject>>(`/projects${queryString({
-        q: query.keyword,
-        status: query.status && query.status !== 'All' ? projectToApi[query.status] : undefined,
-        owner: query.owner,
-        page: query.page ?? 0,
-        size: query.size ?? 100,
-      })}`)
-      return data.items.map(mapProject)
+      return (await getProjectPage(query)).items
     },
     async get(id: string) { return mapProject(await requestData<WireProject>(`/projects/${encodeURIComponent(id)}`)) },
     async create(project: Omit<Project, 'id' | 'updatedAt'>) {
@@ -371,6 +396,15 @@ export const api = {
         status: project.status ? projectToApi[project.status] : undefined,
       }
       return mapProject(await requestData<WireProject>(`/projects/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }))
+    },
+    async getAcquisitionStatus(id: string) {
+      return requestData<AcquisitionStatus>(`/projects/${encodeURIComponent(id)}/acquisition-status`)
+    },
+    async updateAcquisitionStatus(id: string, status: AcquisitionStatusUpdate) {
+      return requestData<AcquisitionStatus>(`/projects/${encodeURIComponent(id)}/acquisition-status`, {
+        method: 'PATCH',
+        body: JSON.stringify(status),
+      })
     },
     async export(query: ProjectQuery = {}) {
       const response = await fetchResponse(`/projects/export${queryString({
@@ -451,6 +485,75 @@ export const api = {
     async update(id: string, ticket: Pick<Ticket, 'priority'> & Partial<Pick<Ticket, 'status'>>) {
       const payload = { priority: ticketPriorityToApi[ticket.priority], status: ticket.status ? ticketStatusToApi[ticket.status] : undefined }
       return mapTicket(await requestData<WireTicket>(`/my-tickets/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(payload) }))
+    },
+  },
+  trace: {
+    artifactTypes: () => requestData<TraceArtifactType[]>('/artifact-types'),
+    relationTypes: () => requestData<TraceRelationType[]>('/relation-types'),
+    artifacts: () => requestData<TraceArtifact[]>('/artifacts'),
+    relations: () => requestData<TraceRelation[]>('/relations'),
+    createArtifact(input: {
+      sourceModule: string
+      sourceObjectType: string
+      sourceObjectId: string
+      artifactTypeCode: string
+      versionLabel: string
+      displayName: string
+      status: string
+      owner?: string
+      contentSummary?: string
+    }) {
+      return requestData<TraceArtifact>('/artifacts', { method: 'POST', body: JSON.stringify(input) })
+    },
+    createRelation(input: { sourceVersionId: string; targetVersionId: string; relationTypeCode: string; rationale: string }) {
+      return requestData<TraceRelation>('/relations', { method: 'POST', body: JSON.stringify(input) })
+    },
+    query(sourceVersionId: string, direction: TraceDirection, maxDepth: number) {
+      return requestData<TraceQueryResult>('/trace-queries', {
+        method: 'POST', body: JSON.stringify({ sourceVersionId, direction, maxDepth, maxNodes: 100 }),
+      })
+    },
+    async createChangeAndAnalyze(input: {
+      sourceVersionId: string
+      changeType: ChangeType
+      beforeContent?: string
+      afterContent?: string
+      description: string
+      maxDepth: number
+    }) {
+      const change = await requestData<{ id: string }>('/changes', {
+        method: 'POST',
+        body: JSON.stringify({
+          sourceVersionId: input.sourceVersionId,
+          changeType: input.changeType,
+          beforeContent: input.beforeContent || null,
+          afterContent: input.afterContent || null,
+          description: input.description,
+        }),
+      })
+      return requestData<ImpactReport>(`/changes/${encodeURIComponent(change.id)}/analyze`, {
+        method: 'POST', body: JSON.stringify({ maxDepth: input.maxDepth, maxNodes: 100 }),
+      })
+    },
+    report: (id: string) => requestData<ImpactReport>(`/impact-reports/${encodeURIComponent(id)}`),
+    review(reportId: string, reportVersion: number, candidateId: string, status: ReviewStatus, comment?: string) {
+      return requestData<ImpactReport>(`/impact-reports/${encodeURIComponent(reportId)}/candidates`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reportVersion, candidates: [{ candidateId, status, comment: comment || null }] }),
+      })
+    },
+    confirmTickets(reportId: string, reportVersion: number, candidateIds: string[], assignee: string) {
+      return requestData<CreatedImpactTicket[]>(`/impact-reports/${encodeURIComponent(reportId)}/confirm-tickets`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reportVersion,
+          candidateIds,
+          assignee,
+          priority: 'HIGH',
+          allowDuplicate: false,
+          confirmed: true,
+        }),
+      })
     },
   },
   guidelines: {

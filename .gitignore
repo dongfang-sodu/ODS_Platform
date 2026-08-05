@@ -44,5 +44,8 @@ Thumbs.db
 .env
 *.local.yml
 
+# GPT work temp scripts
+tmp/
+
 # Portable local toolchains
 .tools/

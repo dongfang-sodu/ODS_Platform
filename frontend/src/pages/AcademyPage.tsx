@@ -2,27 +2,57 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, authSession } from '../api/client'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
+import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import { demoCourses } from '../data/demo'
 import { canCreateAcademyCourse, canManageAcademyCourse } from '../permissions/academy'
 import type { Course, CourseInput } from '../types'
 
 export function AcademyPage() {
-  const [courses, setCourses] = useState<Course[]>(demoCourses)
+  const [courses, setCourses] = useState<Course[]>(demoDataEnabled ? demoCourses : [])
   const [status, setStatus] = useState('All')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const [completingCourse, setCompletingCourse] = useState<Course | null>(null)
   const [actionCourseId, setActionCourseId] = useState<string>()
-  const [notice, setNotice] = useState('Loading Academy courses...')
+  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading live Academy courses` : 'Loading Academy courses...')
+  const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
   const user = authSession.user()
   const canCreate = canCreateAcademyCourse(user)
+  const writeEnabled = !loading && !loadFailed && !showingDemo
+  const canCreateLive = canCreate && writeEnabled
 
   useEffect(() => {
     let alive = true
+    setLoading(true)
+    setLoadFailed(false)
     api.academy.list()
-      .then((data) => { if (alive) { setCourses(data); setNotice('Live data') } })
-      .catch((error) => { if (alive) setNotice(error instanceof Error ? error.message : 'Courses could not be loaded') })
+      .then((data) => {
+        if (!alive) return
+        setCourses(data)
+        setShowingDemo(false)
+        setNotice('Live data')
+      })
+      .catch((error) => {
+        if (!alive) return
+        const message = error instanceof Error ? error.message : 'Courses could not be loaded'
+        setLoadFailed(true)
+        setShowForm(false)
+        setEditingCourse(null)
+        setCompletingCourse(null)
+        if (demoDataEnabled) {
+          setCourses(demoCourses)
+          setShowingDemo(true)
+          setNotice(`${demoReadOnlyNotice} · ${message}`)
+        } else {
+          setCourses([])
+          setShowingDemo(false)
+          setNotice(message)
+        }
+      })
+      .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [])
 
@@ -32,6 +62,10 @@ export function AcademyPage() {
   )
 
   const saveCourse = async (input: CourseInput) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be changed` : 'Academy data must load successfully before changes can be made')
+      return false
+    }
     const allowed = editingCourse ? canManageAcademyCourse(user, editingCourse) : canCreate
     if (!allowed) {
       setNotice('You do not have permission to maintain this course.')
@@ -55,11 +89,18 @@ export function AcademyPage() {
   }
 
   const openCreate = () => {
-    if (!canCreate) return
+    if (!canCreateLive) {
+      if (showingDemo) setNotice(`${demoReadOnlyNotice} · connect the API to add courses`)
+      return
+    }
     setEditingCourse(null)
     setShowForm(true)
   }
   const openEdit = (course: Course) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be edited` : 'Academy data must load successfully before changes can be made')
+      return
+    }
     if (!canManageAcademyCourse(user, course)) {
       setNotice('You do not have permission to maintain this course.')
       return
@@ -68,6 +109,10 @@ export function AcademyPage() {
     setShowForm(true)
   }
   const runAction = async (course: Course, action: 'publish' | 'unpublish' | 'cancel') => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo course status cannot be changed` : 'Academy data must load successfully before changes can be made')
+      return
+    }
     if (!canManageAcademyCourse(user, course)) {
       setNotice('You do not have permission to maintain this course.')
       return
@@ -89,6 +134,11 @@ export function AcademyPage() {
   }
 
   const completeCourse = async (course: Course, materialUploaded: boolean, participationRate?: number) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be completed` : 'Academy data must load successfully before changes can be made')
+      setCompletingCourse(null)
+      return false
+    }
     if (!canManageAcademyCourse(user, course)) {
       setNotice('You do not have permission to maintain this course.')
       setCompletingCourse(null)
@@ -106,11 +156,11 @@ export function AcademyPage() {
     }
   }
   return <>
-    <PageHeader eyebrow="Digital Knowledge" title="Academy library" description="Discover training materials and manage Trims Academy courses from one workspace." actions={canCreate ? <button className="button primary" onClick={openCreate}>＋ Add training course</button> : undefined} />
+    <PageHeader eyebrow="Digital Knowledge" title="Academy library" description="Discover training materials and manage Trims Academy courses from one workspace." actions={canCreateLive ? <button className="button primary" onClick={openCreate}>＋ Add training course</button> : undefined} />
     <div className="notice-bar"><span className="live-dot" />{notice}</div>
     <section className="academy-summary"><div><span className="eyebrow">This quarter</span><strong>{courses.length}</strong><small>courses planned</small></div><div><span className="eyebrow">Published</span><strong>{courses.filter((course) => course.status === 'Published').length}</strong><small>ready for registration</small></div><div><span className="eyebrow">Completed</span><strong>{courses.filter((course) => course.status === 'Completed').length}</strong><small>courses delivered</small></div><div className="academy-progress"><span>Material readiness</span><div><i style={{ width: `${courses.length ? courses.filter((course) => course.materialLocation).length / courses.length * 100 : 0}%` }} /></div><small>Courses with linked training material</small></div></section>
     <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search topic, trainer or department" /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option>All</option><option>Unpublished</option><option>Published</option><option>Invitation sent</option><option>Completed</option><option>Cancelled</option></select></label><span className="result-count">{filtered.length} courses</span></div></section>
-    <section className="card table-card"><div className="table-toolbar"><div><h2>Training courses</h2><p>Publish only when topic, trainer, trainees and training department are complete.</p></div></div>{filtered.length ? <div className="table-wrap"><table><thead><tr><th>Topic</th><th>Date</th><th>Trainer / coordinator</th><th>Department</th><th>Status</th><th>Material</th><th>Operation</th></tr></thead><tbody>{filtered.map((course) => <tr key={course.id}><td><strong>{course.topic}</strong><span className="cell-muted">{course.id}</span></td><td>{course.date}</td><td><span className="cell-title">{course.trainer || 'Not assigned'}</span><span className="cell-muted">{course.coordinator}</span></td><td>{course.department}</td><td><span className={`status status-${course.status.toLowerCase().replaceAll(' ', '-')}`}>{course.status}</span></td><td>{course.materialLocation ? <a className="table-link" href={course.materialLocation} target="_blank" rel="noreferrer">Open folder ↗</a> : <span className="cell-muted">Not uploaded</span>}</td><td>{canManageAcademyCourse(user, course) ? <CourseActions course={course} busy={actionCourseId === course.id} onEdit={() => openEdit(course)} onComplete={() => setCompletingCourse(course)} onAction={(action) => runAction(course, action)} /> : <span className="cell-muted">View only</span>}</td></tr>)}</tbody></table></div> : <EmptyState title="No courses found" description="Try another filter or add the first training course." actionLabel={canCreate ? 'Add course' : undefined} onAction={canCreate ? openCreate : undefined} />}</section>
+    <section className="card table-card"><div className="table-toolbar"><div><h2>Training courses</h2><p>Publish only when topic, trainer, trainees and training department are complete.</p></div>{loading && <span className="loading-label">Loading…</span>}</div>{filtered.length ? <div className="table-wrap"><table><thead><tr><th>Topic</th><th>Date</th><th>Trainer / coordinator</th><th>Department</th><th>Status</th><th>Material</th><th>Operation</th></tr></thead><tbody>{filtered.map((course) => <tr key={course.id}><td><strong>{course.topic}</strong><span className="cell-muted">{course.id}</span></td><td>{course.date}</td><td><span className="cell-title">{course.trainer || 'Not assigned'}</span><span className="cell-muted">{course.coordinator}</span></td><td>{course.department}</td><td><span className={`status status-${course.status.toLowerCase().replaceAll(' ', '-')}`}>{course.status}</span></td><td>{course.materialLocation ? <a className="table-link" href={course.materialLocation} target="_blank" rel="noreferrer">Open folder ↗</a> : <span className="cell-muted">Not uploaded</span>}</td><td>{writeEnabled && canManageAcademyCourse(user, course) ? <CourseActions course={course} busy={actionCourseId === course.id} onEdit={() => openEdit(course)} onComplete={() => setCompletingCourse(course)} onAction={(action) => runAction(course, action)} /> : <span className="cell-muted">{showingDemo ? 'Preview only' : 'View only'}</span>}</td></tr>)}</tbody></table></div> : !loading && <EmptyState title="No courses found" description={loadFailed ? 'Academy data could not be loaded. Check the API connection and try again.' : 'Try another filter or add the first training course.'} actionLabel={canCreateLive ? 'Add course' : undefined} onAction={canCreateLive ? openCreate : undefined} />}</section>
     {showForm && <CourseDialog course={editingCourse} onClose={() => { setShowForm(false); setEditingCourse(null) }} onSubmit={saveCourse} />}
     {completingCourse && <CompleteCourseDialog course={completingCourse} onClose={() => setCompletingCourse(null)} onSubmit={(materialUploaded, participationRate) => completeCourse(completingCourse, materialUploaded, participationRate)} />}
   </>

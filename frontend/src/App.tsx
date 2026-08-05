@@ -11,6 +11,7 @@ import { ProjectDetailPage } from './pages/ProjectDetailPage'
 import { ProjectFormPage } from './pages/ProjectFormPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { TicketsPage } from './pages/TicketsPage'
+import { TraceabilityPage } from './pages/TraceabilityPage'
 import { VideoGuidelinePage } from './pages/VideoGuidelinePage'
 
 function ProtectedApp() {
@@ -30,7 +31,7 @@ function ProtectedApp() {
 
   if (!authenticated) return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}` }} replace />
 
-  return <Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/projects/new" element={<ProjectFormPage />} /><Route path="/projects/:id" element={<ProjectDetailPage />} /><Route path="/projects/:id/edit" element={<ProjectFormPage />} /><Route path="/pmo" element={<PmoPage />} /><Route path="/market" element={<MarketPage />} /><Route path="/academy" element={<AcademyPage />} /><Route path="/tickets" element={<TicketsPage />} /><Route path="/guidelines" element={<VideoGuidelinePage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout>
+  return <Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/projects/new" element={<ProjectFormPage />} /><Route path="/projects/:id" element={<ProjectDetailPage />} /><Route path="/projects/:id/edit" element={<ProjectFormPage />} /><Route path="/pmo" element={<PmoPage />} /><Route path="/market" element={<MarketPage />} /><Route path="/academy" element={<AcademyPage />} /><Route path="/traceability" element={<TraceabilityPage />} /><Route path="/tickets" element={<TicketsPage />} /><Route path="/guidelines" element={<VideoGuidelinePage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout>
 }
 
 export default function App() {

@@ -2,23 +2,43 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
+import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import { demoTickets } from '../data/demo'
 import type { Ticket } from '../types'
 
 const priorityOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 }
 
 export function TicketsPage() {
-  const [tickets, setTickets] = useState<Ticket[]>(demoTickets)
+  const [tickets, setTickets] = useState<Ticket[]>(demoDataEnabled ? demoTickets : [])
   const [filter, setFilter] = useState<'All' | Ticket['status']>('All')
-  const [notice, setNotice] = useState('Loading your tickets...')
+  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading live tickets` : 'Loading your tickets...')
+  const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
+  const writeEnabled = !loading && !loadFailed && !showingDemo
 
   const loadTickets = async () => {
+    setLoading(true)
+    setLoadFailed(false)
     try {
       const data = await api.tickets.list()
       setTickets(data)
+      setShowingDemo(false)
       setNotice('Live data')
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Tickets could not be loaded')
+      const message = error instanceof Error ? error.message : 'Tickets could not be loaded'
+      setLoadFailed(true)
+      if (demoDataEnabled) {
+        setTickets(demoTickets)
+        setShowingDemo(true)
+        setNotice(`${demoReadOnlyNotice} · ${message}`)
+      } else {
+        setTickets([])
+        setShowingDemo(false)
+        setNotice(message)
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -29,6 +49,10 @@ export function TicketsPage() {
   )
 
   const cyclePriority = async (ticket: Ticket) => {
+    if (!writeEnabled) {
+      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo ticket priorities cannot be changed` : 'Tickets must load successfully before priorities can be changed')
+      return
+    }
     const next: Ticket['priority'] = ticket.priority === 'Critical' ? 'High' : ticket.priority === 'High' ? 'Medium' : ticket.priority === 'Medium' ? 'Low' : 'Critical'
     setTickets((current) => current.map((item) => item.id === ticket.id ? { ...item, priority: next } : item))
     try {
@@ -42,10 +66,10 @@ export function TicketsPage() {
   }
 
   return <>
-    <PageHeader eyebrow="Digital Workspace" title="My ticket" description="A focused daily queue for tickets assigned to you across ODS projects." actions={<button className="button secondary" onClick={loadTickets}>↻ Sync JIRA</button>} />
+    <PageHeader eyebrow="Digital Workspace" title="My ticket" description="A focused daily queue for tickets assigned to you across ODS projects." actions={<button className="button secondary" disabled={loading} onClick={loadTickets}>↻ Refresh tickets</button>} />
     <div className="notice-bar"><span className="live-dot" />{notice}<span className="refresh-label">Authenticated user scope</span></div>
     <section className="ticket-summary"><div><span className="eyebrow">Today</span><strong>{tickets.filter((ticket) => ticket.status !== 'Done').length}</strong><small>open tickets</small></div><div className="ticket-priority"><span className="priority-dot critical" /><strong>{tickets.filter((ticket) => ticket.priority === 'Critical').length}</strong><small>critical priority</small></div><div className="ticket-priority"><span className="priority-dot high" /><strong>{tickets.filter((ticket) => ticket.priority === 'High').length}</strong><small>high priority</small></div><div className="ticket-priority"><span className="priority-dot medium" /><strong>{tickets.filter((ticket) => ticket.priority === 'Medium').length}</strong><small>medium priority</small></div></section>
     <section className="card filter-card"><div className="filter-tabs">{(['All', 'To do', 'In progress', 'Blocked', 'Done'] as const).map((value) => <button key={value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}>{value}<span>{value === 'All' ? tickets.length : tickets.filter((ticket) => ticket.status === value).length}</span></button>)}</div></section>
-    <section className="ticket-list">{visible.length ? visible.map((ticket) => <article className="card ticket-card" key={ticket.id}><div className="ticket-main"><div className="ticket-id">{ticket.key}</div><h2>{ticket.title}</h2><p>{ticket.project}</p></div><div className="ticket-meta"><span className={`status status-${ticket.status.toLowerCase().replaceAll(' ', '-')}`}>{ticket.status}</span><button className={`priority-button priority-${ticket.priority.toLowerCase()}`} onClick={() => cyclePriority(ticket)} title="Click to cycle priority"><i />{ticket.priority}</button><span className="due-date">Due {ticket.dueDate ?? '—'}</span>{ticket.externalUrl ? <a className="small-button" href={ticket.externalUrl} target="_blank" rel="noreferrer">Open ↗</a> : <span className="small-button disabled">No link</span>}</div></article>) : <div className="card"><EmptyState title="No tickets in this view" description="Everything is clear here. Change the filter or sync JIRA for new work." /></div>}</section>
+    <section className="ticket-list">{visible.length ? visible.map((ticket) => <article className="card ticket-card" key={ticket.id}><div className="ticket-main"><div className="ticket-id">{ticket.key}</div><h2>{ticket.title}</h2><p>{ticket.project}</p></div><div className="ticket-meta"><span className={`status status-${ticket.status.toLowerCase().replaceAll(' ', '-')}`}>{ticket.status}</span><button className={`priority-button priority-${ticket.priority.toLowerCase()}`} disabled={!writeEnabled} onClick={() => cyclePriority(ticket)} title={writeEnabled ? 'Click to cycle priority' : showingDemo ? 'Demo preview is read-only' : 'Ticket changes are unavailable'}><i />{ticket.priority}</button><span className="due-date">Due {ticket.dueDate ?? '—'}</span>{ticket.externalUrl ? <a className="small-button" href={ticket.externalUrl} target="_blank" rel="noreferrer">Open ↗</a> : <span className="small-button disabled">No link</span>}</div></article>) : !loading && <div className="card"><EmptyState title="No tickets in this view" description={loadFailed ? 'Tickets could not be loaded. Check the API connection and try again.' : 'Everything is clear here. Change the filter or refresh for new work.'} actionLabel={loadFailed ? 'Retry' : undefined} onAction={loadFailed ? loadTickets : undefined} /></div>}</section>
   </>
 }

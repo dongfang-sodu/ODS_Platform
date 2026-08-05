@@ -6,6 +6,6 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TicketRepository extends JpaRepository<Ticket, UUID> {
-    List<Ticket> findByAssigneeIgnoreCaseOrderByPriorityDescDueDateAsc(String assignee);
-    List<Ticket> findByAssigneeIgnoreCaseAndSummaryContainingIgnoreCaseOrderByPriorityDescDueDateAsc(String assignee, String summary);
+    List<Ticket> findByAssigneeIgnoreCase(String assignee);
+    List<Ticket> findByAssigneeIgnoreCaseAndSummaryContainingIgnoreCase(String assignee, String summary);
 }
