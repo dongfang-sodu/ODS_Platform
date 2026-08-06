@@ -1,0 +1,23 @@
+# Codex project configuration (committed to the repo).
+#
+# - Skills are auto-discovered from .codex/skills/<name>/SKILL.md
+#   (mirror of .github/skills/, kept in sync).
+# - The PostToolUse hook mirrors .github/hooks/codegraph-sync.json and keeps
+#   the codegraph index fresh after the agent edits files.
+#
+# NOTE: project-scoped hooks are "untrusted" by default — the first time Codex
+# runs in a new environment it will ask you to trust this hook.
+
+[features]
+hooks = true
+
+[hooks]
+
+[[hooks.PostToolUse]]
+matcher = "apply_patch|Write|Edit"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = "bash .codex/hooks/scripts/codegraph-sync.sh"
+timeout = 60
+statusMessage = "syncing codegraph index"
