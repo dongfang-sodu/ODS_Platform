@@ -6,8 +6,10 @@ import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import { demoCourses } from '../data/demo'
 import { canCreateAcademyCourse, canManageAcademyCourse } from '../permissions/academy'
 import type { Course, CourseInput } from '../types'
+import { useLanguage } from '../i18n'
 
 export function AcademyPage() {
+  const { language, tr, label } = useLanguage()
   const [courses, setCourses] = useState<Course[]>(demoDataEnabled ? demoCourses : [])
   const [status, setStatus] = useState('All')
   const [search, setSearch] = useState('')
@@ -15,7 +17,7 @@ export function AcademyPage() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null)
   const [completingCourse, setCompletingCourse] = useState<Course | null>(null)
   const [actionCourseId, setActionCourseId] = useState<string>()
-  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading live Academy courses` : 'Loading Academy courses...')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
@@ -33,11 +35,11 @@ export function AcademyPage() {
         if (!alive) return
         setCourses(data)
         setShowingDemo(false)
-        setNotice('Live data')
+        setNotice(label('Live data'))
       })
       .catch((error) => {
         if (!alive) return
-        const message = error instanceof Error ? error.message : 'Courses could not be loaded'
+        const message = error instanceof Error ? error.message : tr('Courses could not be loaded', '无法加载培训课程')
         setLoadFailed(true)
         setShowForm(false)
         setEditingCourse(null)
@@ -45,7 +47,7 @@ export function AcademyPage() {
         if (demoDataEnabled) {
           setCourses(demoCourses)
           setShowingDemo(true)
-          setNotice(`${demoReadOnlyNotice} · ${message}`)
+          setNotice(`${label(demoReadOnlyNotice)} · ${message}`)
         } else {
           setCourses([])
           setShowingDemo(false)
@@ -54,7 +56,7 @@ export function AcademyPage() {
       })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [])
+  }, [language])
 
   const filtered = useMemo(
     () => courses.filter((course) => (status === 'All' || course.status === status) && (!search || `${course.topic} ${course.trainer} ${course.department}`.toLowerCase().includes(search.toLowerCase()))),
@@ -63,12 +65,12 @@ export function AcademyPage() {
 
   const saveCourse = async (input: CourseInput) => {
     if (!writeEnabled) {
-      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be changed` : 'Academy data must load successfully before changes can be made')
+      setNotice(showingDemo ? `${label(demoReadOnlyNotice)} · ${tr('demo courses cannot be changed', '演示课程不可修改')}` : tr('Academy data must load successfully before changes can be made', '培训数据成功加载后才能修改'))
       return false
     }
     const allowed = editingCourse ? canManageAcademyCourse(user, editingCourse) : canCreate
     if (!allowed) {
-      setNotice('You do not have permission to maintain this course.')
+      setNotice(tr('You do not have permission to maintain this course.', '你没有维护此课程的权限。'))
       setShowForm(false)
       setEditingCourse(null)
       return false
@@ -78,19 +80,19 @@ export function AcademyPage() {
         ? await api.academy.update(editingCourse.id, input)
         : await api.academy.create(input)
       setCourses((current) => editingCourse ? current.map((course) => course.id === saved.id ? saved : course) : [...current, saved])
-      setNotice(editingCourse ? 'Course updated' : 'Course draft created')
+      setNotice(editingCourse ? tr('Course updated', '课程已更新') : tr('Course draft created', '课程草稿已创建'))
       setShowForm(false)
       setEditingCourse(null)
       return true
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Course could not be saved')
+      setNotice(error instanceof Error ? error.message : tr('Course could not be saved', '课程保存失败'))
       return false
     }
   }
 
   const openCreate = () => {
     if (!canCreateLive) {
-      if (showingDemo) setNotice(`${demoReadOnlyNotice} · connect the API to add courses`)
+      if (showingDemo) setNotice(`${label(demoReadOnlyNotice)} · ${tr('connect the API to add courses', '连接 API 后才能新增课程')}`)
       return
     }
     setEditingCourse(null)
@@ -98,11 +100,11 @@ export function AcademyPage() {
   }
   const openEdit = (course: Course) => {
     if (!writeEnabled) {
-      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be edited` : 'Academy data must load successfully before changes can be made')
+      setNotice(showingDemo ? `${label(demoReadOnlyNotice)} · ${tr('demo courses cannot be edited', '演示课程不可编辑')}` : tr('Academy data must load successfully before changes can be made', '培训数据成功加载后才能修改'))
       return
     }
     if (!canManageAcademyCourse(user, course)) {
-      setNotice('You do not have permission to maintain this course.')
+      setNotice(tr('You do not have permission to maintain this course.', '你没有维护此课程的权限。'))
       return
     }
     setEditingCourse(course)
@@ -110,14 +112,14 @@ export function AcademyPage() {
   }
   const runAction = async (course: Course, action: 'publish' | 'unpublish' | 'cancel') => {
     if (!writeEnabled) {
-      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo course status cannot be changed` : 'Academy data must load successfully before changes can be made')
+      setNotice(showingDemo ? `${label(demoReadOnlyNotice)} · ${tr('demo course status cannot be changed', '演示课程状态不可修改')}` : tr('Academy data must load successfully before changes can be made', '培训数据成功加载后才能修改'))
       return
     }
     if (!canManageAcademyCourse(user, course)) {
-      setNotice('You do not have permission to maintain this course.')
+      setNotice(tr('You do not have permission to maintain this course.', '你没有维护此课程的权限。'))
       return
     }
-    if (action === 'cancel' && !window.confirm(`Cancel ${course.topic}?`)) return
+    if (action === 'cancel' && !window.confirm(`${tr('Cancel', '取消')} ${course.topic}?`)) return
     setActionCourseId(course.id)
     try {
       let updated: Course
@@ -125,9 +127,9 @@ export function AcademyPage() {
       else if (action === 'unpublish') updated = await api.academy.unpublish(course.id)
       else updated = await api.academy.cancel(course.id)
       setCourses((current) => current.map((item) => item.id === updated.id ? updated : item))
-      setNotice(`Course status changed to ${updated.status}`)
+      setNotice(`${tr('Course status changed to', '课程状态已变更为')} ${label(updated.status)}`)
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Course action failed')
+      setNotice(error instanceof Error ? error.message : tr('Course action failed', '课程操作失败'))
     } finally {
       setActionCourseId(undefined)
     }
@@ -135,12 +137,12 @@ export function AcademyPage() {
 
   const completeCourse = async (course: Course, materialUploaded: boolean, participationRate?: number) => {
     if (!writeEnabled) {
-      setNotice(showingDemo ? `${demoReadOnlyNotice} · demo courses cannot be completed` : 'Academy data must load successfully before changes can be made')
+      setNotice(showingDemo ? `${label(demoReadOnlyNotice)} · ${tr('demo courses cannot be completed', '演示课程不可完成')}` : tr('Academy data must load successfully before changes can be made', '培训数据成功加载后才能修改'))
       setCompletingCourse(null)
       return false
     }
     if (!canManageAcademyCourse(user, course)) {
-      setNotice('You do not have permission to maintain this course.')
+      setNotice(tr('You do not have permission to maintain this course.', '你没有维护此课程的权限。'))
       setCompletingCourse(null)
       return false
     }
@@ -148,28 +150,29 @@ export function AcademyPage() {
       const updated = await api.academy.complete(course.id, materialUploaded, participationRate)
       setCourses((current) => current.map((item) => item.id === updated.id ? updated : item))
       setCompletingCourse(null)
-      setNotice(`Course status changed to ${updated.status}`)
+      setNotice(`${tr('Course status changed to', '课程状态已变更为')} ${label(updated.status)}`)
       return true
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : 'Course could not be completed')
+      setNotice(error instanceof Error ? error.message : tr('Course could not be completed', '课程完成失败'))
       return false
     }
   }
   return <>
-    <PageHeader eyebrow="Digital Knowledge" title="Academy library" description="Discover training materials and manage Trims Academy courses from one workspace." actions={canCreateLive ? <button className="button primary" onClick={openCreate}>＋ Add training course</button> : undefined} />
+    <PageHeader eyebrow="Digital Knowledge" title="Academy library" description="Discover training materials and manage Trims Academy courses from one workspace." actions={canCreateLive ? <button className="button primary" onClick={openCreate}>＋ {tr('Add training course', '新增培训课程')}</button> : undefined} />
     <div className="notice-bar"><span className="live-dot" />{notice}</div>
-    <section className="academy-summary"><div><span className="eyebrow">This quarter</span><strong>{courses.length}</strong><small>courses planned</small></div><div><span className="eyebrow">Published</span><strong>{courses.filter((course) => course.status === 'Published').length}</strong><small>ready for registration</small></div><div><span className="eyebrow">Completed</span><strong>{courses.filter((course) => course.status === 'Completed').length}</strong><small>courses delivered</small></div><div className="academy-progress"><span>Material readiness</span><div><i style={{ width: `${courses.length ? courses.filter((course) => course.materialLocation).length / courses.length * 100 : 0}%` }} /></div><small>Courses with linked training material</small></div></section>
-    <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search topic, trainer or department" /></label><label className="field"><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option>All</option><option>Unpublished</option><option>Published</option><option>Invitation sent</option><option>Completed</option><option>Cancelled</option></select></label><span className="result-count">{filtered.length} courses</span></div></section>
-    <section className="card table-card"><div className="table-toolbar"><div><h2>Training courses</h2><p>Publish only when topic, trainer, trainees and training department are complete.</p></div>{loading && <span className="loading-label">Loading…</span>}</div>{filtered.length ? <div className="table-wrap"><table><thead><tr><th>Topic</th><th>Date</th><th>Trainer / coordinator</th><th>Department</th><th>Status</th><th>Material</th><th>Operation</th></tr></thead><tbody>{filtered.map((course) => <tr key={course.id}><td><strong>{course.topic}</strong><span className="cell-muted">{course.id}</span></td><td>{course.date}</td><td><span className="cell-title">{course.trainer || 'Not assigned'}</span><span className="cell-muted">{course.coordinator}</span></td><td>{course.department}</td><td><span className={`status status-${course.status.toLowerCase().replaceAll(' ', '-')}`}>{course.status}</span></td><td>{course.materialLocation ? <a className="table-link" href={course.materialLocation} target="_blank" rel="noreferrer">Open folder ↗</a> : <span className="cell-muted">Not uploaded</span>}</td><td>{writeEnabled && canManageAcademyCourse(user, course) ? <CourseActions course={course} busy={actionCourseId === course.id} onEdit={() => openEdit(course)} onComplete={() => setCompletingCourse(course)} onAction={(action) => runAction(course, action)} /> : <span className="cell-muted">{showingDemo ? 'Preview only' : 'View only'}</span>}</td></tr>)}</tbody></table></div> : !loading && <EmptyState title="No courses found" description={loadFailed ? 'Academy data could not be loaded. Check the API connection and try again.' : 'Try another filter or add the first training course.'} actionLabel={canCreateLive ? 'Add course' : undefined} onAction={canCreateLive ? openCreate : undefined} />}</section>
+    <section className="academy-summary"><div><span className="eyebrow">{tr('This quarter', '本季度')}</span><strong>{courses.length}</strong><small>{tr('courses planned', '计划课程')}</small></div><div><span className="eyebrow">{label('Published')}</span><strong>{courses.filter((course) => course.status === 'Published').length}</strong><small>{tr('ready for registration', '可报名')}</small></div><div><span className="eyebrow">{label('Completed')}</span><strong>{courses.filter((course) => course.status === 'Completed').length}</strong><small>{tr('courses delivered', '已完成课程')}</small></div><div className="academy-progress"><span>{tr('Material readiness', '资料准备度')}</span><div><i style={{ width: `${courses.length ? courses.filter((course) => course.materialLocation).length / courses.length * 100 : 0}%` }} /></div><small>{tr('Courses with linked training material', '已关联培训资料的课程')}</small></div></section>
+    <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr('Search topic, trainer or department', '搜索主题、培训师或部门')} /></label><label className="field"><span>{tr('Status', '状态')}</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="All">{label('All')}</option><option value="Unpublished">{label('Unpublished')}</option><option value="Published">{label('Published')}</option><option value="Invitation sent">{label('Invitation sent')}</option><option value="Completed">{label('Completed')}</option><option value="Cancelled">{label('Cancelled')}</option></select></label><span className="result-count">{filtered.length} {tr('courses', '门课程')}</span></div></section>
+    <section className="card table-card"><div className="table-toolbar"><div><h2>{tr('Training courses', '培训课程')}</h2><p>{tr('Publish only when topic, trainer, trainees and training department are complete.', '主题、培训师、学员和培训部门信息完整后再发布课程。')}</p></div>{loading && <span className="loading-label">{tr('Loading…', '加载中…')}</span>}</div>{filtered.length ? <div className="table-wrap"><table><thead><tr><th>{tr('Topic', '主题')}</th><th>{tr('Date', '日期')}</th><th>{tr('Trainer / coordinator', '培训师 / 协调人')}</th><th>{tr('Department', '部门')}</th><th>{tr('Status', '状态')}</th><th>{tr('Material', '资料')}</th><th>{tr('Operation', '操作')}</th></tr></thead><tbody>{filtered.map((course) => <tr key={course.id}><td><strong>{course.topic}</strong><span className="cell-muted">{course.id}</span></td><td>{course.date}</td><td><span className="cell-title">{course.trainer || tr('Not assigned', '未分配')}</span><span className="cell-muted">{course.coordinator}</span></td><td>{course.department}</td><td><span className={`status status-${course.status.toLowerCase().replaceAll(' ', '-')}`}>{label(course.status)}</span></td><td>{course.materialLocation ? <a className="table-link" href={course.materialLocation} target="_blank" rel="noreferrer">{tr('Open folder', '打开文件夹')} ↗</a> : <span className="cell-muted">{tr('Not uploaded', '未上传')}</span>}</td><td>{writeEnabled && canManageAcademyCourse(user, course) ? <CourseActions course={course} busy={actionCourseId === course.id} onEdit={() => openEdit(course)} onComplete={() => setCompletingCourse(course)} onAction={(action) => runAction(course, action)} /> : <span className="cell-muted">{label(showingDemo ? 'Preview only' : 'View only')}</span>}</td></tr>)}</tbody></table></div> : !loading && <EmptyState title={tr('No courses found', '暂无课程')} description={loadFailed ? tr('Academy data could not be loaded. Check the API connection and try again.', '无法加载培训数据，请检查 API 连接后重试。') : tr('Try another filter or add the first training course.', '请更换筛选条件，或新增第一门培训课程。')} actionLabel={canCreateLive ? tr('Add course', '新增课程') : undefined} onAction={canCreateLive ? openCreate : undefined} />}</section>
     {showForm && <CourseDialog course={editingCourse} onClose={() => { setShowForm(false); setEditingCourse(null) }} onSubmit={saveCourse} />}
     {completingCourse && <CompleteCourseDialog course={completingCourse} onClose={() => setCompletingCourse(null)} onSubmit={(materialUploaded, participationRate) => completeCourse(completingCourse, materialUploaded, participationRate)} />}
   </>
 }
 
 function CourseActions({ course, busy, onEdit, onComplete, onAction }: { course: Course; busy: boolean; onEdit: () => void; onComplete: () => void; onAction: (action: 'publish' | 'unpublish' | 'cancel') => void }) {
+  const { tr } = useLanguage()
   const editable = course.status !== 'Completed' && course.status !== 'Cancelled'
   const publishReady = Boolean(course.trainer.trim() && course.trainee.trim())
-  return <div className="operation-buttons">{editable && <button className="small-button" disabled={busy} onClick={onEdit}>Edit</button>}{course.status === 'Unpublished' && <button className="small-button" disabled={busy || !publishReady} title={publishReady ? 'Publish course' : 'Add a trainer and trainees before publishing'} onClick={() => onAction('publish')}>Publish</button>}{course.status === 'Published' && <button className="small-button" disabled={busy} onClick={() => onAction('unpublish')}>Unpublish</button>}{(course.status === 'Published' || course.status === 'Invitation sent') && <button className="small-button" disabled={busy} onClick={onComplete}>Complete</button>}{editable && <button className="small-button danger-button" disabled={busy} onClick={() => onAction('cancel')}>Cancel</button>}</div>
+  return <div className="operation-buttons">{editable && <button className="small-button" disabled={busy} onClick={onEdit}>{tr('Edit', '编辑')}</button>}{course.status === 'Unpublished' && <button className="small-button" disabled={busy || !publishReady} title={publishReady ? tr('Publish course', '发布课程') : tr('Add a trainer and trainees before publishing', '请先添加培训师和学员')} onClick={() => onAction('publish')}>{tr('Publish', '发布')}</button>}{course.status === 'Published' && <button className="small-button" disabled={busy} onClick={() => onAction('unpublish')}>{tr('Unpublish', '取消发布')}</button>}{(course.status === 'Published' || course.status === 'Invitation sent') && <button className="small-button" disabled={busy} onClick={onComplete}>{tr('Complete', '完成')}</button>}{editable && <button className="small-button danger-button" disabled={busy} onClick={() => onAction('cancel')}>{tr('Cancel', '取消')}</button>}</div>
 }
 
 function localDateTime(value?: string) {
@@ -181,6 +184,7 @@ function localDateTime(value?: string) {
 }
 
 function CourseDialog({ course, onClose, onSubmit }: { course: Course | null; onClose: () => void; onSubmit: (course: CourseInput) => Promise<boolean> }) {
+  const { tr } = useLanguage()
   const user = authSession.user()
   const [topic, setTopic] = useState(course?.topic ?? '')
   const [startAt, setStartAt] = useState(localDateTime(course?.startAt))
@@ -199,10 +203,11 @@ function CourseDialog({ course, onClose, onSubmit }: { course: Course | null; on
     if (!saved) setSaving(false)
   }
   const valid = Boolean(topic.trim() && startAt && endAt && coordinator.trim() && department.trim()) && new Date(endAt).getTime() > new Date(startAt).getTime()
-  return <div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true"><div className="card-heading"><div><span className="eyebrow">Trims Academy</span><h2>{course ? 'Edit training course' : 'New training course'}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close">×</button></div><div className="form-grid compact"><label className="field field-wide"><span>Topic *</span><input autoFocus value={topic} onChange={(event) => setTopic(event.target.value)} placeholder="Course topic" /></label><label className="field"><span>Start *</span><input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} /></label><label className="field"><span>End *</span><input type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} /></label><label className="field"><span>Trainer</span><input value={trainer} onChange={(event) => setTrainer(event.target.value)} placeholder="Trainer name" /></label><label className="field"><span>Coordinator *</span><input value={coordinator} readOnly aria-readonly="true" /></label><label className="field"><span>Trainees</span><input value={trainee} onChange={(event) => setTrainee(event.target.value)} placeholder="Names or group" /></label><label className="field"><span>Training department *</span><input value={department} onChange={(event) => setDepartment(event.target.value)} placeholder="Department" /></label><label className="field field-wide"><span>Material location</span><input value={materialLocation} onChange={(event) => setMaterialLocation(event.target.value)} placeholder="SharePoint URL" /></label><label className="field field-wide"><span>Description</span><textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>{course && <label className="field field-wide"><span>Advanced invitation email</span><textarea rows={5} value={advancedEmail} onChange={(event) => setAdvancedEmail(event.target.value)} placeholder="Optional custom invitation email content" /></label>}</div><p className="modal-hint">The backend stores course times as UTC instants. Local times are converted automatically.</p><div className="form-actions"><button className="button ghost" onClick={onClose}>Cancel</button><button className="button primary" disabled={!valid || saving} onClick={submit}>{saving ? 'Saving…' : course ? 'Save changes' : 'Save draft'}</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal" role="dialog" aria-modal="true"><div className="card-heading"><div><span className="eyebrow">Trims Academy</span><h2>{course ? tr('Edit training course', '编辑培训课程') : tr('New training course', '新建培训课程')}</h2></div><button className="icon-button" onClick={onClose} aria-label={tr('Close', '关闭')}>×</button></div><div className="form-grid compact"><label className="field field-wide"><span>{tr('Topic', '主题')} *</span><input autoFocus value={topic} onChange={(event) => setTopic(event.target.value)} placeholder={tr('Course topic', '课程主题')} /></label><label className="field"><span>{tr('Start', '开始')} *</span><input type="datetime-local" value={startAt} onChange={(event) => setStartAt(event.target.value)} /></label><label className="field"><span>{tr('End', '结束')} *</span><input type="datetime-local" value={endAt} onChange={(event) => setEndAt(event.target.value)} /></label><label className="field"><span>{tr('Trainer', '培训师')}</span><input value={trainer} onChange={(event) => setTrainer(event.target.value)} placeholder={tr('Trainer name', '培训师姓名')} /></label><label className="field"><span>{tr('Coordinator', '协调人')} *</span><input value={coordinator} readOnly aria-readonly="true" /></label><label className="field"><span>{tr('Trainees', '学员')}</span><input value={trainee} onChange={(event) => setTrainee(event.target.value)} placeholder={tr('Names or group', '姓名或群组')} /></label><label className="field"><span>{tr('Training department', '培训部门')} *</span><input value={department} onChange={(event) => setDepartment(event.target.value)} placeholder={tr('Department', '部门')} /></label><label className="field field-wide"><span>{tr('Material location', '资料位置')}</span><input value={materialLocation} onChange={(event) => setMaterialLocation(event.target.value)} placeholder="SharePoint URL" /></label><label className="field field-wide"><span>{tr('Description', '说明')}</span><textarea rows={4} value={description} onChange={(event) => setDescription(event.target.value)} /></label>{course && <label className="field field-wide"><span>{tr('Advanced invitation email', '高级邀请邮件')}</span><textarea rows={5} value={advancedEmail} onChange={(event) => setAdvancedEmail(event.target.value)} placeholder={tr('Optional custom invitation email content', '可选的自定义邀请邮件内容')} /></label>}</div><p className="modal-hint">{tr('The backend stores course times as UTC instants. Local times are converted automatically.', '后端以 UTC 时间保存课程时间，系统会自动转换本地时间。')}</p><div className="form-actions"><button className="button ghost" onClick={onClose}>{tr('Cancel', '取消')}</button><button className="button primary" disabled={!valid || saving} onClick={submit}>{saving ? tr('Saving…', '保存中…') : course ? tr('Save changes', '保存修改') : tr('Save draft', '保存草稿')}</button></div></div></div>
 }
 
 function CompleteCourseDialog({ course, onClose, onSubmit }: { course: Course; onClose: () => void; onSubmit: (materialUploaded: boolean, participationRate?: number) => Promise<boolean> }) {
+  const { tr } = useLanguage()
   const [materialUploaded, setMaterialUploaded] = useState(course.materialUploaded ?? Boolean(course.materialLocation))
   const [participationRate, setParticipationRate] = useState(course.participationRate?.toString() ?? '')
   const [saving, setSaving] = useState(false)
@@ -214,5 +219,5 @@ function CompleteCourseDialog({ course, onClose, onSubmit }: { course: Course; o
     const saved = await onSubmit(materialUploaded, parsedRate)
     if (!saved) setSaving(false)
   }
-  return <div className="modal-backdrop"><div className="modal modal-small" role="dialog" aria-modal="true"><div className="card-heading"><div><span className="eyebrow">Course completion</span><h2>{course.topic}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close">×</button></div><div className="form-grid compact"><label className="checkbox-field field-wide"><input type="checkbox" checked={materialUploaded} onChange={(event) => setMaterialUploaded(event.target.checked)} /><span>Training material uploaded</span></label><label className="field field-wide"><span>Participation rate (%)</span><input type="number" min="0" max="100" step="0.1" value={participationRate} onChange={(event) => setParticipationRate(event.target.value)} placeholder="Optional, 0-100" />{!valid && <small className="field-error">Enter a value between 0 and 100.</small>}</label></div>{!materialUploaded && <p className="modal-hint">The course can be completed now, but the platform will keep the missing-material reminder active.</p>}<div className="form-actions"><button className="button ghost" onClick={onClose}>Cancel</button><button className="button primary" disabled={!valid || saving} onClick={submit}>{saving ? 'Completing…' : 'Complete course'}</button></div></div></div>
+  return <div className="modal-backdrop"><div className="modal modal-small" role="dialog" aria-modal="true"><div className="card-heading"><div><span className="eyebrow">{tr('Course completion', '课程完成')}</span><h2>{course.topic}</h2></div><button className="icon-button" onClick={onClose} aria-label={tr('Close', '关闭')}>×</button></div><div className="form-grid compact"><label className="checkbox-field field-wide"><input type="checkbox" checked={materialUploaded} onChange={(event) => setMaterialUploaded(event.target.checked)} /><span>{tr('Training material uploaded', '培训资料已上传')}</span></label><label className="field field-wide"><span>{tr('Participation rate (%)', '参与率（%）')}</span><input type="number" min="0" max="100" step="0.1" value={participationRate} onChange={(event) => setParticipationRate(event.target.value)} placeholder={tr('Optional, 0-100', '可选，0-100')} />{!valid && <small className="field-error">{tr('Enter a value between 0 and 100.', '请输入 0 到 100 之间的数值。')}</small>}</label></div>{!materialUploaded && <p className="modal-hint">{tr('The course can be completed now, but the platform will keep the missing-material reminder active.', '即使未上传资料也可以完成课程，但系统会继续显示资料缺失提醒。')}</p>}<div className="form-actions"><button className="button ghost" onClick={onClose}>{tr('Cancel', '取消')}</button><button className="button primary" disabled={!valid || saving} onClick={submit}>{saving ? tr('Completing…', '完成中…') : tr('Complete course', '完成课程')}</button></div></div></div>
 }

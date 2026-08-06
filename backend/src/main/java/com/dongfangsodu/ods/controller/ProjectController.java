@@ -51,7 +51,7 @@ public class ProjectController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('TPJM','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PROJECT_MANAGER','ADMIN')")
     public ApiResponse<ProjectResponse> create(@Valid @RequestBody CreateProjectRequest request, Principal principal) {
         return ApiResponse.of(projects.create(request, principal.getName()));
     }
@@ -62,7 +62,7 @@ public class ProjectController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','LPM','DEPARTMENT_HEAD','ADMIN')")
     public ApiResponse<ProjectResponse> update(@PathVariable UUID id,
                                                 @Valid @RequestBody UpdateProjectRequest request) {
         return ApiResponse.of(projects.update(id, request));
@@ -74,7 +74,7 @@ public class ProjectController {
     }
 
     @PatchMapping("/{id}/acquisition-status")
-    @PreAuthorize("hasAnyRole('PCB','SCP','ADMIN')")
+    @PreAuthorize("hasAnyRole('PCB','PROCUREMENT','SCP','ADMIN')")
     public ApiResponse<AcquisitionStatusResponse> updateAcquisitionStatus(
             @PathVariable UUID id, @Valid @RequestBody UpdateAcquisitionStatusRequest request) {
         return ApiResponse.of(projects.updateAcquisitionStatus(id, request));

@@ -6,6 +6,10 @@ spring:
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
     driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
   jpa:
     open-in-view: false
     hibernate:
@@ -16,22 +20,44 @@ spring:
         jdbc.time_zone: UTC
   flyway:
     enabled: ${FLYWAY_ENABLED:false}
+  sql:
+    init:
+      mode: ${SQL_INIT_MODE:always}
+      schema-locations: classpath:schema-h2.sql
   jackson:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2s}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:ods}
+    password: ${RABBITMQ_PASSWORD:}
 
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
   error:
-    include-message: always
+    include-message: never
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       probes:
@@ -43,9 +69,17 @@ ods:
     password: ${ODS_SEED_PASSWORD:ChangeMe123!}
   security:
     jwt-secret: ${JWT_SECRET:change-this-development-secret-to-at-least-32-characters}
-    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:15}
+    refresh-token-hours: ${REFRESH_TOKEN_HOURS:8}
+    password-reset-mail-enabled: ${PASSWORD_RESET_MAIL_ENABLED:false}
+    password-reset-mail-from: ${PASSWORD_RESET_MAIL_FROM:no-reply@ods.local}
+    password-reset-base-url: ${PASSWORD_RESET_BASE_URL:http://localhost:3000/reset-password}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  storage:
+    endpoint: ${S3_ENDPOINT:}
+    region: ${S3_REGION:auto}
+    bucket: ${S3_BUCKET:ods-artifacts}
 
 ---
 spring:
@@ -62,6 +96,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  sql:
+    init:
+      mode: never
 ods:
   seed:
     enabled: ${ODS_SEED_ENABLED:false}

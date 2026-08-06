@@ -2,6 +2,7 @@ package com.dongfangsodu.ods.security;
 
 import com.dongfangsodu.ods.domain.UserAccount;
 import com.dongfangsodu.ods.repository.UserAccountRepository;
+import java.time.Instant;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -25,6 +26,7 @@ public class PlatformUserDetailsService implements UserDetailsService {
                 .password(account.getPasswordHash())
                 .roles(roles)
                 .disabled(!account.isEnabled())
+                .accountLocked(account.isLockedAt(Instant.now()))
                 .build();
     }
 }

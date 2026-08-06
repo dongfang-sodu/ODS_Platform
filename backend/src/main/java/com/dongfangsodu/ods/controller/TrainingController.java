@@ -37,14 +37,14 @@ public class TrainingController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> create(@Valid @RequestBody CreateCourseRequest request,
                                                Authentication authentication) {
         return ApiResponse.of(courses.create(request, authentication.getName()));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdateCourseRequest request,
                                                Authentication authentication) {
         return ApiResponse.of(courses.update(id, request, authentication.getName(),
@@ -52,25 +52,25 @@ public class TrainingController {
     }
 
     @PostMapping("/{id}/publish")
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> publish(@PathVariable UUID id, Authentication authentication) {
         return ApiResponse.of(courses.publish(id, authentication.getName(), canMaintainAll(authentication)));
     }
 
     @PostMapping("/{id}/unpublish")
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> unpublish(@PathVariable UUID id, Authentication authentication) {
         return ApiResponse.of(courses.unpublish(id, authentication.getName(), canMaintainAll(authentication)));
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> cancel(@PathVariable UUID id, Authentication authentication) {
         return ApiResponse.of(courses.cancel(id, authentication.getName(), canMaintainAll(authentication)));
     }
 
     @PatchMapping("/{id}/complete")
-    @PreAuthorize("hasAnyRole('TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<CourseResponse> complete(@PathVariable UUID id,
                                                  @Valid @RequestBody CompleteCourseRequest request,
                                                  Authentication authentication) {

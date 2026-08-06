@@ -43,11 +43,12 @@ class PostgresFlywayIntegrationTest {
                 where table_schema = 'public'
                   and table_name in (
                     'users', 'projects', 'pmo_projects', 'training_courses',
-                    'trace_artifacts', 'trace_relations', 'trace_impact_reports', 'trace_operation_logs'
+                    'trace_artifacts', 'trace_relations', 'trace_impact_reports', 'trace_operation_logs',
+                    'refresh_tokens', 'password_reset_tokens'
                   )
                 """, Integer.class);
 
-        assertThat(applied).isGreaterThanOrEqualTo(3);
-        assertThat(tables).isEqualTo(8);
+        assertThat(applied).isGreaterThanOrEqualTo(4);
+        assertThat(tables).isEqualTo(10);
     }
 }

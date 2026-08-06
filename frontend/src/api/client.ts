@@ -31,6 +31,7 @@ import type {
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '/api/v1'
 const tokenKey = 'ods_access_token'
+const refreshTokenKey = 'ods_refresh_token'
 const userKey = 'ods_user'
 export const authChangedEvent = 'ods:auth-changed'
 
@@ -141,10 +142,12 @@ function readStoredUser(): AuthUser | null {
 
 export const authSession = {
   token: () => window.localStorage.getItem(tokenKey),
+  refreshToken: () => window.localStorage.getItem(refreshTokenKey),
   user: readStoredUser,
   isAuthenticated: () => Boolean(window.localStorage.getItem(tokenKey)),
   save(result: LoginResult) {
     window.localStorage.setItem(tokenKey, result.token)
+    window.localStorage.setItem(refreshTokenKey, result.refreshToken)
     window.localStorage.setItem(userKey, JSON.stringify(result.user))
     window.dispatchEvent(new Event(authChangedEvent))
   },
@@ -154,17 +157,44 @@ export const authSession = {
   },
   clear() {
     window.localStorage.removeItem(tokenKey)
+    window.localStorage.removeItem(refreshTokenKey)
     window.localStorage.removeItem(userKey)
     window.dispatchEvent(new Event(authChangedEvent))
   },
 }
 
-async function fetchResponse(path: string, init?: RequestInit): Promise<Response> {
+let refreshInFlight: Promise<void> | null = null
+
+async function refreshAccessToken(): Promise<void> {
+  const refreshToken = authSession.refreshToken()
+  if (!refreshToken) throw new ApiError('登录会话已失效', 401, 'SESSION_EXPIRED')
+  const response = await fetch(`${baseUrl}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  if (!response.ok) throw new ApiError('登录会话已失效', response.status, 'SESSION_EXPIRED')
+  const envelope = await response.json() as ApiEnvelope<LoginResult>
+  authSession.save(envelope.data)
+}
+
+async function fetchResponse(path: string, init?: RequestInit, allowRefresh = true): Promise<Response> {
   const headers = new Headers(init?.headers)
   if (init?.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   const token = authSession.token()
   if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
   const response = await fetch(`${baseUrl}${path}`, { ...init, headers })
+  const publicAuthRequest = path === '/auth/login' || path === '/auth/refresh' || path === '/auth/logout'
+    || path.startsWith('/auth/password-reset/')
+  if (response.status === 401 && allowRefresh && !publicAuthRequest && authSession.refreshToken()) {
+    try {
+      refreshInFlight ??= refreshAccessToken().finally(() => { refreshInFlight = null })
+      await refreshInFlight
+      return fetchResponse(path, init, false)
+    } catch {
+      authSession.clear()
+    }
+  }
   if (!response.ok) {
     const error = await response.json().catch(() => ({})) as ErrorEnvelope
     if (response.status === 401) authSession.clear()
@@ -363,7 +393,35 @@ export const api = {
       authSession.saveUser(user)
       return user
     },
-    logout: () => authSession.clear(),
+    async logout() {
+      const refreshToken = authSession.refreshToken()
+      try {
+        if (refreshToken) {
+          await requestData('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) })
+        }
+      } finally {
+        authSession.clear()
+      }
+    },
+    sessions() {
+      return requestData<Array<{ id: string; createdAt: string; expiresAt: string; createdByIp?: string }>>('/auth/sessions')
+    },
+    logoutSession(id: string) {
+      return requestData<{ message: string }>(`/auth/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    },
+    logoutAll() {
+      return requestData<{ message: string }>('/auth/logout-all', { method: 'POST' })
+    },
+    requestPasswordReset(email: string) {
+      return requestData<{ message: string }>('/auth/password-reset/request', {
+        method: 'POST', body: JSON.stringify({ email }),
+      })
+    },
+    confirmPasswordReset(token: string, newPassword: string) {
+      return requestData<{ message: string }>('/auth/password-reset/confirm', {
+        method: 'POST', body: JSON.stringify({ token, newPassword }),
+      })
+    },
   },
   projects: {
     getProjectPage,

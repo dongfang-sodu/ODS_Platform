@@ -8,6 +8,7 @@ import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import { demoCourses, demoMarket, demoProjects, demoTickets } from '../data/demo'
 import { canCreateProject } from '../permissions/projects'
 import type { Course, MarketSummary, Project, ProjectStatus, Ticket } from '../types'
+import { useLanguage } from '../i18n'
 
 const REPORT_YEAR = 2024
 const REPORT_MONTH = 12
@@ -66,12 +67,8 @@ function resolveModule<T>(result: PromiseSettledResult<T>, demoData: T, fallback
   }
 }
 
-function moduleDetail<T>(state: ModuleState<T>, detail: string) {
-  if (state.data === null) return state.error ? 'Unavailable' : 'Loading...'
-  return state.usingDemo ? `Demo preview · ${detail}` : detail
-}
-
 export function DashboardPage() {
+  const { tr, label, language } = useLanguage()
   const [projectsState, setProjectsState] = useState<ModuleState<DashboardProjects>>(emptyModuleState)
   const [ticketsState, setTicketsState] = useState<ModuleState<Ticket[]>>(emptyModuleState)
   const [coursesState, setCoursesState] = useState<ModuleState<Course[]>>(emptyModuleState)
@@ -92,12 +89,12 @@ export function DashboardPage() {
 
     if (currentRequest !== requestId.current) return
 
-    setProjectsState(resolveModule(projectsResult, demoDashboardProjects, 'Projects could not be loaded.'))
-    setTicketsState(resolveModule(ticketsResult, demoTickets, 'Tickets could not be loaded.'))
-    setCoursesState(resolveModule(coursesResult, demoCourses, 'Academy courses could not be loaded.'))
-    setMarketState(resolveModule(marketResult, demoMarket, 'Market summary could not be loaded.'))
+    setProjectsState(resolveModule(projectsResult, demoDashboardProjects, tr('Projects could not be loaded.', '无法加载项目。')))
+    setTicketsState(resolveModule(ticketsResult, demoTickets, tr('Tickets could not be loaded.', '无法加载工单。')))
+    setCoursesState(resolveModule(coursesResult, demoCourses, tr('Academy courses could not be loaded.', '无法加载培训课程。')))
+    setMarketState(resolveModule(marketResult, demoMarket, tr('Market summary could not be loaded.', '无法加载市场概览。')))
     setLoading(false)
-  }, [])
+  }, [tr])
 
   useEffect(() => {
     void loadDashboard()
@@ -118,18 +115,22 @@ export function DashboardPage() {
     .slice(0, 5)
   const reportingPeriod = market ? `${market.year}-${String(market.month).padStart(2, '0')}` : ''
   const marketChange = market?.yoy === null || market?.yoy === undefined
-    ? 'No comparison'
-    : `${market.yoy >= 0 ? '+' : ''}${market.yoy}% average share change`
+    ? tr('No comparison', '暂无对比数据')
+    : `${market.yoy >= 0 ? '+' : ''}${market.yoy}% ${tr('average share change', '平均份额变化')}`
 
   const modules = [
-    { label: 'projects', state: projectsState },
-    { label: 'tickets', state: ticketsState },
-    { label: 'Academy', state: coursesState },
-    { label: 'market', state: marketState },
+    { label: tr('projects', '项目'), state: projectsState },
+    { label: tr('tickets', '工单'), state: ticketsState },
+    { label: tr('Academy', '培训课程'), state: coursesState },
+    { label: tr('market', '市场'), state: marketState },
   ]
   const failedModules = modules.filter((module) => module.state.error).map((module) => module.label)
   const hasDemoFallback = modules.some((module) => module.state.usingDemo)
   const canCreate = canCreateProject(authSession.user())
+  const moduleDetail = <T,>(state: ModuleState<T>, detail: string) => {
+    if (state.data === null) return state.error ? label('Unavailable') : tr('Loading...', '加载中...')
+    return state.usingDemo ? `${label('Demo preview')} · ${detail}` : detail
+  }
 
   return <>
     <PageHeader
@@ -137,79 +138,80 @@ export function DashboardPage() {
       title="Your workspace"
       description="A clear view of projects, tasks and insights across One Driving System."
       actions={<>
-        <button className="button secondary" disabled={loading} onClick={() => void loadDashboard()}>{loading ? 'Refreshing...' : '↻ Refresh'}</button>
-        {canCreate && !projectsState.usingDemo && <Link className="button primary" to="/projects/new">＋ New project</Link>}
+        <button className="button secondary" disabled={loading} onClick={() => void loadDashboard()}>{loading ? tr('Refreshing...', '正在刷新...') : `↻ ${tr('Refresh', '刷新')}`}</button>
+        {canCreate && !projectsState.usingDemo && <Link className="button primary" to="/projects/new">＋ {tr('New project', '新建项目')}</Link>}
       </>}
     />
 
-    {hasDemoFallback && <div className="notice-bar" role="status" style={{ flexWrap: 'wrap' }}><span className="live-dot" /><strong>{demoReadOnlyNotice}</strong><span className="role-pill">Preview only</span></div>}
-    {failedModules.length > 0 && <div className="notice-bar error-message" role="alert" style={{ flexWrap: 'wrap' }}><strong>Live data unavailable:</strong><span>{failedModules.join(', ')}.</span><span className="refresh-label">{hasDemoFallback ? 'Affected modules show read-only demo data.' : 'No demo values were substituted.'}</span></div>}
+    {hasDemoFallback && <div className="notice-bar" role="status" style={{ flexWrap: 'wrap' }}><span className="live-dot" /><strong>{label(demoReadOnlyNotice)}</strong><span className="role-pill">{label('Preview only')}</span></div>}
+    {failedModules.length > 0 && <div className="notice-bar error-message" role="alert" style={{ flexWrap: 'wrap' }}><strong>{tr('Live data unavailable:', '实时数据不可用：')}</strong><span>{failedModules.join(language === 'zh' ? '、' : ', ')}。</span><span className="refresh-label">{hasDemoFallback ? tr('Affected modules show read-only demo data.', '受影响模块显示只读演示数据。') : tr('No demo values were substituted.', '未使用演示数据替代。')}</span></div>}
 
     <section className="stat-grid">
       <StatCard
-        label="Active projects"
+        label={tr('Active projects', '进行中项目')}
         value={projectsState.data === null ? '—' : activeProjects}
-        detail={moduleDetail(projectsState, `${projectSummary?.totalElements ?? 0} total projects`)}
+        detail={moduleDetail(projectsState, `${projectSummary?.totalElements ?? 0} ${tr('total projects', '个项目')}`)}
         tone="blue"
       />
       <StatCard
-        label="Open tickets"
+        label={tr('Open tickets', '未关闭工单')}
         value={ticketsState.data === null ? '—' : openTickets.length}
-        detail={moduleDetail(ticketsState, `${urgentTickets} critical or high priority`)}
+        detail={moduleDetail(ticketsState, `${urgentTickets} ${tr('critical or high priority', '个紧急或高优先级工单')}`)}
         tone="amber"
       />
       <StatCard
-        label="Market sales"
-        value={market ? market.totalSales.toLocaleString('en-US') : '—'}
+        label={tr('Market sales', '市场销量')}
+        value={market ? market.totalSales.toLocaleString(language === 'zh' ? 'zh-CN' : 'en-US') : '—'}
         detail={moduleDetail(marketState, market ? `${reportingPeriod} · ${marketChange}` : '')}
         tone="green"
       />
       <StatCard
-        label="Academy courses"
+        label={tr('Academy courses', '培训课程')}
         value={coursesState.data === null ? '—' : courses.length}
-        detail={moduleDetail(coursesState, `${publishedCourses} published`)}
+        detail={moduleDetail(coursesState, `${publishedCourses} ${tr('published', '门已发布')}`)}
         tone="purple"
       />
     </section>
 
     <section className="dashboard-grid">
       <article className="card chart-card">
-        <div className="card-heading"><div><span className="eyebrow">Portfolio distribution</span><h2>Project status</h2></div><Link to="/projects" className="text-link">View all →</Link></div>
+        <div className="card-heading"><div><span className="eyebrow">{tr('Portfolio distribution', '项目组合分布')}</span><h2>{tr('Project status', '项目状态')}</h2></div><Link to="/projects" className="text-link">{tr('View all', '查看全部')} →</Link></div>
         {projectSummary === null
-          ? <EmptyState title={loading ? 'Loading projects' : 'Project data unavailable'} description={projectsState.error ?? 'Waiting for the project service.'} />
+          ? <EmptyState title={loading ? tr('Loading projects', '正在加载项目') : tr('Project data unavailable', '项目数据不可用')} description={projectsState.error ?? tr('Waiting for the project service.', '正在等待项目服务。')} />
           : projectSummary.totalElements
             ? <ProjectStatusChart counts={projectSummary.statusCounts} />
-            : <EmptyState title="No projects yet" description="The project service returned no records." />}
+            : <EmptyState title={tr('No projects yet', '暂无项目')} description={tr('The project service returned no records.', '项目服务未返回记录。')} />}
       </article>
 
       <article className="card activity-card">
-        <div className="card-heading"><div><span className="eyebrow">Latest updates</span><h2>Recent projects</h2></div>{projectsState.usingDemo && <span className="role-pill">Demo</span>}</div>
+        <div className="card-heading"><div><span className="eyebrow">{tr('Latest updates', '最新动态')}</span><h2>{tr('Recent projects', '最近项目')}</h2></div>{projectsState.usingDemo && <span className="role-pill">{label('Demo')}</span>}</div>
         {projectsState.data === null
-          ? <EmptyState title={loading ? 'Loading updates' : 'Updates unavailable'} description={projectsState.error ?? 'Waiting for project updates.'} />
+          ? <EmptyState title={loading ? tr('Loading updates', '正在加载动态') : tr('Updates unavailable', '动态不可用')} description={projectsState.error ?? tr('Waiting for project updates.', '正在等待项目动态。')} />
           : recentProjects.length
-            ? <div className="activity-list">{recentProjects.map((project, index) => <div className="activity-item" key={project.id}><span className={`activity-dot dot-${index}`} /><div><p>{project.name}</p><small>{project.code} · {project.status} · Milestone {project.milestone || 'not scheduled'}</small></div></div>)}</div>
-            : <EmptyState title="No recent projects" description="Project activity will appear after records are created or updated." />}
-        <Link className="button ghost full-width" to="/projects">Open project workspace</Link>
+            ? <div className="activity-list">{recentProjects.map((project, index) => <div className="activity-item" key={project.id}><span className={`activity-dot dot-${index}`} /><div><p>{project.name}</p><small>{project.code} · {label(project.status)} · {tr('Milestone', '里程碑')} {project.milestone || tr('not scheduled', '未安排')}</small></div></div>)}</div>
+            : <EmptyState title={tr('No recent projects', '暂无最近项目')} description={tr('Project activity will appear after records are created or updated.', '创建或更新项目后，这里会显示项目动态。')} />}
+        <Link className="button ghost full-width" to="/projects">{tr('Open project workspace', '打开项目工作区')}</Link>
       </article>
     </section>
 
     <section className="card table-card">
-      <div className="card-heading"><div><span className="eyebrow">Keep moving</span><h2>My priority tickets</h2></div>{ticketsState.usingDemo ? <span className="role-pill">Demo preview</span> : <Link to="/tickets" className="text-link">Open My Ticket →</Link>}</div>
+      <div className="card-heading"><div><span className="eyebrow">{tr('Keep moving', '持续推进')}</span><h2>{tr('My priority tickets', '我的优先工单')}</h2></div>{ticketsState.usingDemo ? <span className="role-pill">{label('Demo preview')}</span> : <Link to="/tickets" className="text-link">{tr('Open My Ticket', '打开我的工单')} →</Link>}</div>
       {ticketsState.data === null
-        ? <EmptyState title={loading ? 'Loading tickets' : 'Ticket data unavailable'} description={ticketsState.error ?? 'Waiting for the ticket service.'} />
+        ? <EmptyState title={loading ? tr('Loading tickets', '正在加载工单') : tr('Ticket data unavailable', '工单数据不可用')} description={ticketsState.error ?? tr('Waiting for the ticket service.', '正在等待工单服务。')} />
         : priorityTickets.length
-          ? <div className="table-wrap"><table><thead><tr><th>Ticket</th><th>Project</th><th>Status</th><th>Priority</th><th>Due</th></tr></thead><tbody>{priorityTickets.map((ticket) => <tr key={ticket.id}><td>{ticketsState.usingDemo ? <span className="table-link">{ticket.key}</span> : <Link className="table-link" to="/tickets">{ticket.key}</Link>}<span className="cell-title">{ticket.title}</span></td><td>{ticket.project}</td><td><span className={`status status-${ticket.status.toLowerCase().replaceAll(' ', '-')}`}>{ticket.status}</span></td><td><span className={`priority priority-${ticket.priority.toLowerCase()}`}><i style={ticket.priority === 'Critical' ? { background: 'var(--red)' } : undefined} />{ticket.priority}</span></td><td>{ticket.dueDate ?? '—'}</td></tr>)}</tbody></table></div>
-          : <EmptyState title="No open priority tickets" description="The ticket service returned no open work for this view." />}
+          ? <div className="table-wrap"><table><thead><tr><th>{tr('Ticket', '工单')}</th><th>{tr('Project', '项目')}</th><th>{tr('Status', '状态')}</th><th>{tr('Priority', '优先级')}</th><th>{tr('Due', '截止日期')}</th></tr></thead><tbody>{priorityTickets.map((ticket) => <tr key={ticket.id}><td>{ticketsState.usingDemo ? <span className="table-link">{ticket.key}</span> : <Link className="table-link" to="/tickets">{ticket.key}</Link>}<span className="cell-title">{ticket.title}</span></td><td>{ticket.project}</td><td><span className={`status status-${ticket.status.toLowerCase().replaceAll(' ', '-')}`}>{label(ticket.status)}</span></td><td><span className={`priority priority-${ticket.priority.toLowerCase()}`}><i style={ticket.priority === 'Critical' ? { background: 'var(--red)' } : undefined} />{label(ticket.priority)}</span></td><td>{ticket.dueDate ?? '—'}</td></tr>)}</tbody></table></div>
+          : <EmptyState title={tr('No open priority tickets', '暂无未关闭的优先工单')} description={tr('The ticket service returned no open work for this view.', '工单服务未返回当前视图中的待处理事项。')} />}
     </section>
   </>
 }
 
 function ProjectStatusChart({ counts }: { counts: Record<ProjectStatus, number> }) {
+  const { label } = useLanguage()
   const statusCounts = PROJECT_STATUSES.map((status) => ({
     status,
     count: counts[status],
   }))
   const largestCount = Math.max(...statusCounts.map((item) => item.count), 1)
 
-  return <div className="market-bars">{statusCounts.map(({ status, count }) => <div className="market-bar" key={status}><div className="market-bar-label"><span>{status}</span><b>{count}</b></div><div className="market-track"><i style={{ width: `${count / largestCount * 100}%`, background: status === 'On hold' || status === 'Cancelled' ? 'var(--amber)' : undefined }} /></div></div>)}</div>
+  return <div className="market-bars">{statusCounts.map(({ status, count }) => <div className="market-bar" key={status}><div className="market-bar-label"><span>{label(status)}</span><b>{count}</b></div><div className="market-track"><i style={{ width: `${count / largestCount * 100}%`, background: status === 'On hold' || status === 'Cancelled' ? 'var(--amber)' : undefined }} /></div></div>)}</div>
 }

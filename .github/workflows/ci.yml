@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Backend tests
+        working-directory: backend
+        run: mvn --batch-mode verify
+      - name: Frontend install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+      - name: Container build smoke test
+        run: |
+          docker build -t ods/backend:ci backend
+          docker build -t ods/frontend:ci frontend

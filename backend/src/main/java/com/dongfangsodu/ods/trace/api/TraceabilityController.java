@@ -74,14 +74,14 @@ public class TraceabilityController {
     }
 
     @PostMapping("/artifacts")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','MARKET_SPECIALIST','TRAINING_SPECIALIST','PROCUREMENT','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
     public ApiResponse<ArtifactResponse> createArtifact(@Valid @RequestBody CreateArtifactRequest request,
                                                         Principal principal) {
         return ApiResponse.of(artifacts.create(request, principal.getName()));
     }
 
     @PostMapping("/artifacts/{id}/versions")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','MARKET_SPECIALIST','TRAINING_SPECIALIST','PROCUREMENT','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
     public ApiResponse<ArtifactResponse> addVersion(@PathVariable UUID id,
                                                     @Valid @RequestBody CreateArtifactVersionRequest request,
                                                     Principal principal) {
@@ -94,14 +94,14 @@ public class TraceabilityController {
     }
 
     @PostMapping("/relations")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','MARKET_SPECIALIST','TRAINING_SPECIALIST','PROCUREMENT','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
     public ApiResponse<RelationResponse> createRelation(@Valid @RequestBody CreateRelationRequest request,
                                                         Principal principal) {
         return ApiResponse.of(artifacts.createRelation(request, principal.getName()));
     }
 
     @PatchMapping("/relations/{id}/status")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','MARKET_SPECIALIST','TRAINING_SPECIALIST','PROCUREMENT','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
     public ApiResponse<RelationResponse> changeRelationStatus(@PathVariable UUID id,
                                                               @Valid @RequestBody RelationStatusRequest request,
                                                               Principal principal) {
@@ -114,14 +114,14 @@ public class TraceabilityController {
     }
 
     @PostMapping("/changes")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','EBE','EPO','LPM','DEPARTMENT_HEAD','ADMIN')")
     public ApiResponse<ChangeResponse> createChange(@Valid @RequestBody CreateChangeRequest request,
                                                     Principal principal) {
         return ApiResponse.of(impacts.createChange(request, principal.getName()));
     }
 
     @PostMapping("/changes/{id}/analyze")
-    @PreAuthorize("hasAnyRole('TPJM','PJM','EBE','EPO','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('TPJM','PJM','PROJECT_MANAGER','ALGORITHM_ENGINEER','HARDWARE_ENGINEER','TEST_ENGINEER','EBE','EPO','LPM','DEPARTMENT_HEAD','ADMIN')")
     public ApiResponse<ImpactReportResponse> analyze(@PathVariable UUID id,
                                                      @Valid @RequestBody AnalyzeChangeRequest request,
                                                      Principal principal) {
@@ -139,7 +139,7 @@ public class TraceabilityController {
     }
 
     @PatchMapping("/impact-reports/{id}/candidates")
-    @PreAuthorize("hasAnyRole('PJM','EBE','EPO','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('PJM','PROJECT_MANAGER','REVIEWER','EBE','EPO','LPM','TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<ImpactReportResponse> review(@PathVariable UUID id,
                                                    @Valid @RequestBody ReviewCandidatesRequest request,
                                                    Principal principal) {
@@ -147,7 +147,7 @@ public class TraceabilityController {
     }
 
     @PostMapping("/impact-reports/{id}/confirm-tickets")
-    @PreAuthorize("hasAnyRole('PJM','LPM','TRAINER','COORDINATOR','ADMIN')")
+    @PreAuthorize("hasAnyRole('PJM','PROJECT_MANAGER','REVIEWER','DEPARTMENT_HEAD','LPM','TRAINER','TRAINING_SPECIALIST','COORDINATOR','ADMIN')")
     public ApiResponse<List<CreatedTicketResponse>> confirmTickets(
             @PathVariable UUID id, @Valid @RequestBody ConfirmTicketsRequest request, Principal principal) {
         return ApiResponse.of(impacts.confirmTickets(id, request, principal.getName()));

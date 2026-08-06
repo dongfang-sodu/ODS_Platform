@@ -27,6 +27,7 @@ public class JwtService {
         Instant now = Instant.now();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .claim("typ", "access")
                 .claim("roles", userDetails.getAuthorities().stream().map(Object::toString).toList())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
@@ -41,11 +42,16 @@ public class JwtService {
     public boolean isValid(String token, UserDetails userDetails) {
         Claims claims = claims(token);
         return claims.getSubject().equals(userDetails.getUsername())
+                && "access".equals(claims.get("typ", String.class))
                 && claims.getExpiration().after(new Date())
                 && userDetails.isEnabled()
                 && userDetails.isAccountNonLocked()
                 && userDetails.isAccountNonExpired()
                 && userDetails.isCredentialsNonExpired();
+    }
+
+    public long expirationSeconds() {
+        return expirationMinutes * 60;
     }
 
     private Claims claims(String token) {

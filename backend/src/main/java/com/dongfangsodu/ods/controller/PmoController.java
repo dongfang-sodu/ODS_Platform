@@ -46,20 +46,20 @@ public class PmoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('PJM','EBE','EPO','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('PJM','PROJECT_MANAGER','DEPARTMENT_HEAD','EBE','EPO','LPM','ADMIN')")
     public ApiResponse<PmoResponse> create(@Valid @RequestBody CreatePmoRequest request) {
         return ApiResponse.of(projects.createL0(request));
     }
 
     @PostMapping("/{parentId}/children")
-    @PreAuthorize("hasAnyRole('PJM','EBE','EPO','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('PJM','PROJECT_MANAGER','DEPARTMENT_HEAD','EBE','EPO','LPM','ADMIN')")
     public ApiResponse<PmoResponse> createChild(@PathVariable UUID parentId,
                                                  @Valid @RequestBody CreateChildRequest request) {
         return ApiResponse.of(projects.createL1(parentId, request));
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('PJM','EBE','EPO','LPM','ADMIN')")
+    @PreAuthorize("hasAnyRole('PJM','PROJECT_MANAGER','DEPARTMENT_HEAD','EBE','EPO','LPM','ADMIN')")
     public ApiResponse<PmoResponse> update(@PathVariable UUID id, @Valid @RequestBody UpdatePmoRequest request) {
         return ApiResponse.of(projects.update(id, request));
     }

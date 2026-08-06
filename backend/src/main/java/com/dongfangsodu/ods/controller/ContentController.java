@@ -32,13 +32,13 @@ public class ContentController {
     }
 
     @PostMapping("/video-guidelines")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','TRAINING_SPECIALIST','MARKET_SPECIALIST')")
     public ApiResponse<VideoResponse> createVideo(@Valid @RequestBody VideoRequest request) {
         return ApiResponse.of(content.createVideo(request));
     }
 
     @PutMapping("/video-guidelines/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','TRAINING_SPECIALIST','MARKET_SPECIALIST')")
     public ApiResponse<VideoResponse> updateVideo(@PathVariable UUID id,
                                                    @Valid @RequestBody VideoRequest request) {
         return ApiResponse.of(content.updateVideo(id, request));

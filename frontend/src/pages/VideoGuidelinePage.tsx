@@ -4,6 +4,7 @@ import { EmptyState } from '../components/EmptyState'
 import { PageHeader } from '../components/PageHeader'
 import { demoDataEnabled, demoReadOnlyNotice } from '../config/runtime'
 import type { VideoGuideline } from '../types'
+import { useLanguage } from '../i18n'
 
 const fallbackVideos: VideoGuideline[] = [
   { id: 'login', title: 'How to log in', category: 'Getting started', duration: '02:18', description: 'Sign in to ODS and understand the workspace home page.', color: 'blue', sortOrder: 1, published: true },
@@ -20,10 +21,11 @@ const fallbackVideos: VideoGuideline[] = [
 ]
 
 export function VideoGuidelinePage() {
+  const { language, tr, label } = useLanguage()
   const [videos, setVideos] = useState<VideoGuideline[]>(demoDataEnabled ? fallbackVideos : [])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
-  const [notice, setNotice] = useState(demoDataEnabled ? `${demoReadOnlyNotice} · loading published video guidelines` : 'Loading published video guidelines...')
+  const [notice, setNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [showingDemo, setShowingDemo] = useState(demoDataEnabled)
@@ -35,16 +37,16 @@ export function VideoGuidelinePage() {
         if (!alive) return
         setVideos(data)
         setShowingDemo(false)
-        setNotice('Live data')
+        setNotice(label('Live data'))
       })
       .catch((error) => {
         if (!alive) return
-        const message = error instanceof Error ? error.message : 'Video API unavailable'
+        const message = error instanceof Error ? error.message : tr('Video API unavailable', '视频服务不可用')
         setLoadFailed(true)
         if (demoDataEnabled) {
           setVideos(fallbackVideos)
           setShowingDemo(true)
-          setNotice(`${demoReadOnlyNotice} · ${message}`)
+          setNotice(`${label(demoReadOnlyNotice)} · ${message}`)
         } else {
           setVideos([])
           setShowingDemo(false)
@@ -53,7 +55,7 @@ export function VideoGuidelinePage() {
       })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [])
+  }, [language])
 
   const categories = ['All', ...Array.from(new Set(videos.map((video) => video.category)))]
   const filtered = useMemo(
@@ -62,12 +64,12 @@ export function VideoGuidelinePage() {
   )
   return <>
     <PageHeader eyebrow="Digital Workspace" title="Video guideline" description="Short, practical walkthroughs to help you get the most from One Driving System." />
-    <div className="notice-bar"><span className="live-dot" />{notice}</div>
-    <section className="guideline-hero"><div><span className="eyebrow">Self-service learning</span><h2>Find your next answer in minutes.</h2><p>Browse the topic library or search for a specific ODS workflow. Hosted videos open in a new tab.</p></div><div className="hero-play" aria-hidden="true">▶</div></section>
-    <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search video topics" /></label><label className="field"><span>Category</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((value) => <option key={value}>{value}</option>)}</select></label><span className="result-count">{filtered.length} guides</span></div></section>
-    {filtered.length ? <section className="video-grid">{filtered.map((video) => <article className="video-card card" key={video.id}><div className={`video-thumb ${video.color ?? 'blue'}`} style={video.thumbnailUrl ? { backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}><span>▶</span><small>{video.duration ?? 'Video'}</small></div><div className="video-copy"><span className="eyebrow">{video.category}</span><h2>{video.title}</h2><p>{video.description}</p>{video.videoUrl ? <a className="text-link" href={video.videoUrl} target="_blank" rel="noreferrer">Watch guide ↗</a> : <span className="text-link muted-link">Video pending</span>}</div></article>)}</section> : <section className="card"><EmptyState
-      title={loading ? 'Loading video guidelines' : loadFailed ? 'Video guidelines unavailable' : search || category !== 'All' ? 'No matching guidelines' : 'No published guidelines'}
-      description={loading ? 'Published guides will appear when loading completes.' : loadFailed ? 'The live catalog could not be loaded. Try again after the API is available.' : showingDemo ? demoReadOnlyNotice : 'Published video links will appear here.'}
+    <div className="notice-bar"><span className="live-dot" />{label(notice)}</div>
+    <section className="guideline-hero"><div><span className="eyebrow">{tr('Self-service learning', '自助学习')}</span><h2>{tr('Find your next answer in minutes.', '几分钟内找到你需要的答案。')}</h2><p>{tr('Browse the topic library or search for a specific ODS workflow. Hosted videos open in a new tab.', '浏览主题库或搜索具体的 ODS 流程。视频将在新标签页中打开。')}</p></div><div className="hero-play" aria-hidden="true">▶</div></section>
+    <section className="card filter-card"><div className="filter-row"><label className="field search-field"><span>⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={tr('Search video topics', '搜索视频主题')} /></label><label className="field"><span>{tr('Category', '分类')}</span><select value={category} onChange={(event) => setCategory(event.target.value)}>{categories.map((value) => <option key={value}>{label(value)}</option>)}</select></label><span className="result-count">{filtered.length} {tr('guides', '个指南')}</span></div></section>
+    {filtered.length ? <section className="video-grid">{filtered.map((video) => <article className="video-card card" key={video.id}><div className={`video-thumb ${video.color ?? 'blue'}`} style={video.thumbnailUrl ? { backgroundImage: `url(${video.thumbnailUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}><span>▶</span><small>{video.duration ?? label('Video')}</small></div><div className="video-copy"><span className="eyebrow">{label(video.category)}</span><h2>{label(video.title)}</h2><p>{label(video.description)}</p>{video.videoUrl ? <a className="text-link" href={video.videoUrl} target="_blank" rel="noreferrer">{tr('Watch guide', '观看指南')} ↗</a> : <span className="text-link muted-link">{tr('Video pending', '视频待上传')}</span>}</div></article>)}</section> : <section className="card"><EmptyState
+      title={loading ? tr('Loading video guidelines', '正在加载视频指南') : loadFailed ? tr('Video guidelines unavailable', '视频指南不可用') : search || category !== 'All' ? tr('No matching guidelines', '没有匹配的指南') : tr('No published guidelines', '暂无已发布指南')}
+      description={loading ? tr('Published guides will appear when loading completes.', '加载完成后将显示已发布指南。') : loadFailed ? tr('The live catalog could not be loaded. Try again after the API is available.', '无法加载实时目录，请确认 API 可用后重试。') : showingDemo ? label(demoReadOnlyNotice) : tr('Published video links will appear here.', '已发布的视频链接将在此显示。')}
     /></section>}
   </>
 }

@@ -4,7 +4,10 @@ import { api, authChangedEvent, authSession } from './api/client'
 import { Layout } from './components/Layout'
 import { AcademyPage } from './pages/AcademyPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { AccountSecurityPage } from './pages/AccountSecurityPage'
 import { LoginPage } from './pages/LoginPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { MarketPage } from './pages/MarketPage'
 import { PmoPage } from './pages/PmoPage'
 import { ProjectDetailPage } from './pages/ProjectDetailPage'
@@ -31,9 +34,9 @@ function ProtectedApp() {
 
   if (!authenticated) return <Navigate to="/login" state={{ from: `${location.pathname}${location.search}` }} replace />
 
-  return <Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/projects/new" element={<ProjectFormPage />} /><Route path="/projects/:id" element={<ProjectDetailPage />} /><Route path="/projects/:id/edit" element={<ProjectFormPage />} /><Route path="/pmo" element={<PmoPage />} /><Route path="/market" element={<MarketPage />} /><Route path="/academy" element={<AcademyPage />} /><Route path="/traceability" element={<TraceabilityPage />} /><Route path="/tickets" element={<TicketsPage />} /><Route path="/guidelines" element={<VideoGuidelinePage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout>
+  return <Layout><Routes><Route path="/" element={<DashboardPage />} /><Route path="/account/security" element={<AccountSecurityPage />} /><Route path="/projects" element={<ProjectsPage />} /><Route path="/projects/new" element={<ProjectFormPage />} /><Route path="/projects/:id" element={<ProjectDetailPage />} /><Route path="/projects/:id/edit" element={<ProjectFormPage />} /><Route path="/pmo" element={<PmoPage />} /><Route path="/market" element={<MarketPage />} /><Route path="/academy" element={<AcademyPage />} /><Route path="/traceability" element={<TraceabilityPage />} /><Route path="/tickets" element={<TicketsPage />} /><Route path="/guidelines" element={<VideoGuidelinePage />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout>
 }
 
 export default function App() {
-  return <Routes><Route path="/login" element={<LoginPage />} /><Route path="/*" element={<ProtectedApp />} /></Routes>
+  return <Routes><Route path="/login" element={<LoginPage />} /><Route path="/forgot-password" element={<ForgotPasswordPage />} /><Route path="/reset-password" element={<ResetPasswordPage />} /><Route path="/*" element={<ProtectedApp />} /></Routes>
 }

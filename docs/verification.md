@@ -1,6 +1,6 @@
 # 验证记录
 
-最后更新：2026-08-05。
+最后更新：2026-08-06。
 
 ## 工具链
 
@@ -18,11 +18,12 @@
 
 | 范围 | 命令 | 结果 |
 | --- | --- | --- |
-| 后端 | `mvn test` | 40 项执行，39 项通过，0 失败，0 错误，1 项因本机无 Docker 跳过 |
+| 后端 | `mvn test` | 45 项执行，44 项通过，0 失败，0 错误，1 项因本机无 Docker 跳过 |
 | 前端依赖 | 全新临时目录执行 `npm ci` | 成功安装 76 个包，无 deprecated 或 vulnerability 警告 |
 | 前端类型 | `npm run typecheck` | 通过，无诊断 |
-| 前端生产包 | `npm run build` | 通过，51 个模块；JS 263.96 kB，CSS 30.03 kB |
-| 配置文件 | Node JSON 解析及 PowerShell XML 解析 | 5 个 JSON 与 `backend/pom.xml` 通过 |
+| 前端生产包 | `npm run build` | 通过，54 个模块；JS 271.62 kB，CSS 30.03 kB |
+| 配置文件 | Python YAML 静态解析 | Compose、2 个 GitHub Actions 工作流及 10 个 K3s YAML 文件全部通过 |
+| 差异检查 | `git diff --check` | 通过，无空白错误 |
 
 受管沙箱内的 Vite 默认配置加载器无法读取工作区上级目录；授权在普通本机权限下执行后，`npm run build` 成功完成 TypeScript 编译和生产打包。
 
@@ -32,6 +33,8 @@
 
 - `/actuator/health` 返回 `UP`。
 - 登录和 `/api/v1/auth/me` 成功。
+- 使用仅包含旧版 `users` 表结构的文件型 H2 数据库启动新版本，认证字段自动补齐，`admin` 登录返回 HTTP 200。
+- 新增认证集成测试验证刷新令牌轮换、旧令牌失效、连续 5 次失败锁定账号、密码重置请求不泄露账号是否存在，以及登录会话列表和单会话注销。
 - 创建项目后自动建立 Acquisition 状态与 PMO L0。
 - 2024-12 Vehicle Market 返回总销量 24500 和 3 个 OEM。
 - Academy 课程创建并发布后状态为 `PUBLISHED`。
@@ -43,7 +46,7 @@
 
 ## 尚未验证
 
-当前机器未安装 Docker，因此没有执行 `docker compose up --build`。PostgreSQL Testcontainers 用例按设计自动跳过；该用例已包含对 V1–V3 Flyway 迁移和追溯核心表的检查，但本次结果不代表 PostgreSQL 17、Flyway、Nginx 和三个容器已在本机完成端到端验证。H2 本地环境按设计关闭 Flyway并由 Hibernate 管理 Schema，不能代替 PostgreSQL 兼容性验证。获得 Docker 环境后应执行：
+当前机器未安装 Docker 和 kubectl，因此没有执行 `docker compose up --build` 或 K3s 启动验证。PostgreSQL Testcontainers 用例按设计自动跳过；该用例已包含对 V1–V4 Flyway 迁移、追溯核心表、刷新令牌表和密码重置令牌表的检查，但本次结果不代表 PostgreSQL 17、Flyway、Redis、RabbitMQ、Nginx 和容器编排已完成端到端验证。H2 本地环境按设计关闭 Flyway 并由 Hibernate 管理 Schema，不能代替 PostgreSQL 兼容性验证。获得 Docker 环境后应执行：
 
 ```powershell
 Copy-Item .env.example .env
